@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       POSTGRES_DB: db_isa
-      POSTGRES_USER: isa
+      POSTGRES_USER: pipeline_isa
       POSTGRES_PASSWORD: teste123
     ports:
       - "5434:5432"
@@ -101,7 +101,7 @@ services:
       - DATABASE_HOST=postgres_isa
       - DATABASE_PORT=5432
       - DATABASE_NAME=db_isa
-      - DATABASE_USER=isa
+      - DATABASE_USER=pipeline_isa
       - DATABASE_PASSWORD=teste123
     networks:
       - pipeline-network
