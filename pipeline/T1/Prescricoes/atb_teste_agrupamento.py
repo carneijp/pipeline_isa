@@ -1,0 +1,351 @@
+from ImpararePackage import dataRequest
+from multiprocessing import Pool, cpu_count
+from ImpararePackage import maestro
+import pandas as pd
+
+def worker(c = pd.DataFrame):
+    
+    c = maestro.copy_columns(df= c, column= "atb")
+    
+    translate_atb = {
+        #ACICLOVIR
+        "ACICLOVIR 200MG COMP - ZOVIRAX" : "INTERMEDIARIO",
+        "ACICLOVIR 400 MG COMP" : "INTERMEDIARIO",
+        "ACICLOVIR 400MG COMP" : "INTERMEDIARIO",
+        "ACICLOVIR (50MG/G) TB 10G CREME TOPICO - ZOVIRAX" : "INTERMEDIARIO",
+        "ACICLOVIR FA 250MG PO LIOFILIZADO INJ - UNI VIR" : "INTERMEDIARIO",
+        "ACICLOVIR FA 250MG PO LIOF INJ - UNI VIR" : "INTERMEDIARIO",
+        #AMICACINA
+        "AMICACINA - 100MG (50MG/ML) AMP 2ML INJ - AMICACINA" : "HOSPITALAR",
+        "AMICACINA 500MG (250MG/ML) AMP 2ML INJ - AMICACINA" : "HOSPITALAR",
+        #AMOX+CLAV
+        "AMOXICIL+CLAVULAN (400MG+57MG/5ML) FR 70ML OR - CLAVULIN BD" : "OUTROS",
+        "AMOXICILINA+CLAVULANAT (250MG+62,5MG/5ML) FR 75ML - CLAVULIN" : "OUTROS",
+        "AMOXICILINA+CLAVULANATO 1G/200MG FA INJ - DOCLAXIN" : "OUTROS",
+        "AMOXICILINA 500MG + CLAVULANATO 125MG COMP - CLAVULIN" : "OUTROS",
+        "AMOXICILINA 500MG+ACIDO CLAVULANICO 125MG COMP - CLAVULIN BD" : "OUTROS",
+        #AMOXICILINA
+        "AMOXICILINA (250MG/5ML) FR 150ML PO SUS OR - AMOXIL" : "OUTROS",
+        "AMOXICILINA 500MG CAPS - AMOXIL" : "OUTROS",
+        #AMOXICILINA_SULBACTAM            
+        "AMOXICILIN+SULBACT (200MG+50MG/ML) PO SUS FR 30ML - TRIFAMOX" : "OUTROS",
+        "AMOXI+SULBAC IBL BD 250MG/ML FR 30ML SUP - TRIFAMOX" : "OUTROS",
+        #AMPICILINA
+        "AMPICILINA FA 1G PO INJ" : "INTERMEDIARIO",
+        #AMPICILINA_SULBACTAM
+        "SULBACTAM 1,0G + AMPICILINA 2,0G PO INJ FA 3G" : "OUTROS",
+        "SULBACTAM+AMPICILINA (0,5G+1,0G) FA 1,5G PO SOL INJ - UNASYN" : "OUTROS",
+        #AZITROMICINA
+        "AZITROMICINA 500MG COMP - ZITROMAX" : "OUTROS",
+        "AZITROMICINA 600MG (200MG/5ML) FR 15ML PO SUSP ORAL - ASTRO" : "OUTROS",
+        "AZITROMICINA 600MG (40MG/ML) FR 15ML PO SUSP OR - ASTRO" : "OUTROS",
+        "AZITROMICINA FA 500MG PO LIOF SOL INJ - ZITROMAX" : "OUTROS",
+        "INATIVO AZITROMICINA 600MG (200MG/5ML) FR 15ML PO SU - ASTRO" : "OUTROS",
+        #PENICILINAGBENZATINA
+        "BENZILPENICILINA 1.200.000 (300.000U/ML) FA 4ML - BENZETACIL" : "COMUNITARIO",
+        "BENZILPENICILINA (300.000U/ML) FA 4ML SUSP INJ - BENZETACIL" : "COMUNITARIO",
+        "BENZILPENICILINA FA 400.000 UI PO INJ - PENKARON" : "COMUNITARIO",
+        #PENICILINAGPOTASSICA
+        "PENICILINA  5.000.000UI INJ - ARICILINA" : "COMUNITARIO",
+        "PENICILINA FA 5.000.000 UI PO INJ - ARICILINA" : "COMUNITARIO",
+        #CEFADROXILA
+        "CEFADROXILA (250MG/5ML) FR P/100ML PO SUSP ORAL" : "OUTROS",
+        "CEFADROXILA 500MG CAPS - CEFAMOX" : "OUTROS",
+        "CEFADROXILA (50MG/ML) FR 100ML PO SUSP ORAL" : "OUTROS",
+        #CEFALEXINA
+        "CEFALEXINA 250MG/5ML (50MG/ML) FR 100ML SUSP ORAL - KEFLEX" : "COMUNITARIO",
+        "CEFALEXINA 500MG COMP - KEFLEX " : "COMUNITARIO",
+        "KEFLEX 250MG/5ML (50MG/ML) FR100ML SUSP ORAL - CEFALEXINA" : "COMUNITARIO",
+        #CEFALOTINA
+        "CEFALOTINA FA 1G PO SOL INJ - KEFLIN" : "OUTROS",
+        "KEFLIN FA 1G - CEFALOTINA" : "OUTROS",
+        #CEFAZOLINA
+        "CEFAZOLINA FA 1G (1000MG) PO SOL INJ - KEFAZOL" : "PROFILATICO",
+        "CEFAZOLINA SODICA 1G FR 1000MG (R) - KEFAZOL" : "PROFILATICO",
+        #CEFOTAXIMA
+        "CEFOTAXIMA SODICA 1G INJ - CLAFORDIL" : "COMUNITARIO",
+        #CEFTAZIDIMA
+        "CEFTAZIDIMA 1G FA PO INJ - CEFTAZIDON" : "HOSPITALAR",
+        "CEFTAZIDIMA FA 1G (1000MG) PO INJ - CEFTAZIDON" : "HOSPITALAR",
+        #CEFTAZIDIMA_AVIBACTAM
+        "CEFTAZIDIMA 2000MG+AVIBACTAM 500MG FA 2.5G PO - TORGENA" : "MMR",
+        #CEFTALOZANA_TAZOBACTAM
+        "CEFTOLOZANA 1G + TAZOBACTAM 0,5G - ZERBAXA TM" : "MMR",
+        #CEFTRIAXONA
+        "CEFTRIAXONA 1G FA 1000MG PO INJ IV (R) - ROCEFIN" : "OUTROS",
+        "CEFTRIAXONA FA 1G PO SOL INJ IM - ROCEFIN" : "OUTROS",
+        "CEFTRIAXONA FA 1G PO SOL INJ IV - ROCEFIN" : "OUTROS",
+        "CEFTRIAXONA FA 500MG PO SOL INJ IM - ROCEFIN" : "OUTROS",
+        #CEFUROXIMA
+        "CEFUROXIMA FA 750MG PO INJ - ZINACEF" : "OUTROS",
+        #CETOCONAZOL
+        "CETOCONAZOL (20MG/G) TB 30G CREME - NIZORAL" : "TOPICO",
+        #CIPROFLOXACINO
+        "CIPROFLOXACINO 200MG (2MG/ML) BOLS 100ML INJ - FRESOFLOX" : "OUTROS",
+        "CIPROFLOXACINO 200MG (2MG/ML) BS 100ML INJ - FRESOFLOX" : "OUTROS",
+        "CIPROFLOXACINO 200MG (2MG/ML) BS 100ML INJ - HIFLOXAN" : "OUTROS",
+        "CIPROFLOXACINO (3,5MG/ML) FR 5ML SOL OFT - CILOXAN" : "OUTROS",
+        "CIPROFLOXACINO 400MG (2MG/ML) BOLS 200ML SOL INJ IV - CIPRO" : "OUTROS",
+        "CIPROFLOXACINO 400MG (2MG/ML) FR 200ML SOL INJ IV - CIPRO" : "OUTROS",
+        "CIPROFLOXACINO 500MG COMP REV - CIPRO" : "OUTROS",
+        #CLARITROMICINA
+        "CLARITROMICINA  500MG COMP - KLARICID" : "OUTROS",
+        "CLARITROMICINA 500MG FA PO LIOF INJ - CLARILIB" : "OUTROS",
+        #CLINDAMICINA
+        "CLINDAMICINA 300MG CAPS DURA - DALACIN" : "OUTROS",
+        "CLINDAMICINA 600MG (150MG/ML) AMP 4ML INJ - HYCLIN" : "OUTROS",
+        #CEFEPIMA
+        "CLORIDRATO CEFEPIMA FA 1G INJ - CLOCEF" : "HOSPITALAR",
+        #DOXICICLINA
+        "DOXICICLINA 100MG COMP REV - VIBRAMICINA " : "OUTROS",
+        "VIBRAMICINA 100MG COMP REV - DOXICICLINA" : "OUTROS",
+        #ERTAPENEM
+        "ERTAPENEM FA 1G PO LIOF INJ - INVANZ" : "OUTROS",
+        #FLUCONAZOL
+        "FLUCONAZOL 150MG CAPS DURA - ZOLTEC" : "ANTIFUNGICO",
+        "FLUCONAZOL 200MG (2MG/ML) BOLSA 100ML SOL INF - ZOLTEC" : "ANTIFUNGICO",
+        #GANCICLOVIR
+        "GANCICLOVIR (1MG/ML) BOLS 500ML SOL IN PRONTO P/USO- CYMEVIR" : "OUTROS",
+        "GANCICLOVIR 500MG PO FA LIOFILIZADO INJ - GANCICLOTRAT" : "OUTROS",
+        "GANCICLOVIR 500MG SOL INJ BOLSA PRONTO P/ USO - CYMEVIR" : "OUTROS",
+        "GANCICLOVIR FA 500MG PO LIOF INJ - GANCICLOTRAT" : "OUTROS",
+        #GENTAMICINA
+        "GENTAMICINA 20MG/1ML INJ - GENTAMICIN" : "INTERMEDIARIO",
+        "GENTAMICINA 40MG (40MG/ML) AMP 1ML INJ - GARAMICINA" : "INTERMEDIARIO",
+        "GENTAMICINA 80MG (40MG/ML) AMP 2ML INJ - GARAMICINA" : "INTERMEDIARIO",
+        #IVERMECTINA
+        "IVERMECTINA 6MG COMP - LEVERCTIN" : "OUTROS",
+        #ERITROMICINA
+        "LACTOBIONATO ERITROMICINA FA 1000MG PO SOL INFUS - TROMAXIL" : "OUTROS",
+        #LEVOFLOXACINO
+        "LEVOFLOXACINO 500MG (5MG/ML) BOLSA 100ML INJ - TAVANIC" : "OUTROS",
+        "LEVOFLOXACINO 500MG COMP REV - LEVAQUIN" : "OUTROS",
+        "LEVOFLOXACINO 750MG COMP REV - TAMIRAM" : "OUTROS",
+        "LEVOFLOXACINO HEMI-HIDRATADO 750MG (5MG/ML) BOLSA 150ML" : "OUTROS",
+        #LINEZOLIDA
+        "LINEZOLIDA 600MG (2MG/ML) BOLSA 300ML SOL INF - ZYVOX" : "MMR",
+        #MEROPENEM
+        "MERONEM FA 1G (1000 MG) PO INJ - MEROPENEM" : "MMR",
+        "MEROPENEM 1G FA 1000MG PO SOL INJ IV - MERONEM" : "MMR",
+        "MEROPENEM FA 500MG PO SOL INJ - MERONEM" : "MMR",
+        #METRONIDAZOL
+        "METRONIDAZOL 250MG COMP - FLAGYL" : "INTERMEDIARIO",
+        "METRONIDAZOL 400MG COMP - FLAGYL" : "INTERMEDIARIO",
+        "METRONIDAZOL 500MG (5MG/ML) FR 100ML SOL INJ IV - FLAGYL" : "INTERMEDIARIO",
+        #MICAFUNGINA
+        "MICAFUNGINA SODICA FA 100MG PO LIOF INF IV - MYCAMINE" : "ANTIFUNGICO",
+        "MICAFUNGINA SODICA FA 50MG PO LIOF INF IV - MYCAMINE" : "ANTIFUNGICO",
+        #MICONAZOL
+        "DAKTARIN 20MG/G TB 40G GEL ORAL - MICONAZOL" : "TOPICO",
+        "MICONAZOL (20MG/G) TB 40G GEL ORAL - DAKTARIN" : "TOPICO",
+        #MOXIFLOXACINO
+        "MOXIFLOXACINO 400MG (1,6MG/ML) BS 250ML SOL - AVALOX" : "OUTROS",
+        "MOXIFLOXACINO 400MG COMP - AVALOX" : "OUTROS",
+        "MOXIFLOXACINO (5,45MG/ML) FR 5ML SOL OFT - VIGAMOX" : "TOPICO",
+        "MOXIFLOXACINO + FOSF DEXAMETASONA FR 5ML SOL OFT - VIGADEXA" : "TOPICO",
+        "VIGAMOX 5,45MG/ML FR 5ML SOLUCAO OFTALMICA - MOXIFLOXACINO" : "TOPICO",
+        #CLORANFENICOL
+        "KOLLAGENASE + CLORANFENICOL TB 30G (CLORANFENICOL) " : "OUTROS",
+        "RETINOL+AMINOAC+METIONINA+CLORANFE TB3,5G POM OFT - EPITEZAN" : "OUTROS",
+        #MUPIROCINA
+        "MUPIROCINA 2% (20MG/G) TB 15G POMADA - BACTROBAN" : "PROFILATICO",
+        #NEOMICINA
+        "NEOMICINA+BACITRACINA (5MG+250UI/GR) TB 15G POM - NEBACETIN" : "TOPICO",
+        "DEXAMETASONA+NEOMICINA+POLIMIXINA B FR 5ML SUSP OFT-MAXITROL" : "TOPICO",
+        "TRIANCINOLONA+NEOMICINA+ASSOC TB 30G POMADA-OMCILON A M " : "TOPICO",
+        #SULFADIAZINA
+        "NITRATO CERIO 0,4%+SULFADIAZINA 1% TB 50G CREM - DERMACERIUM" : "TOPICO",
+        "NITRATO CERIO 0,4%+SULFADIAZINA 1% TB 50G CREME-DERMACERIUM" : "TOPICO",
+        "SULFADIAZINA PRATA (10MG/G) TB 50G CREME DERM - SILGLOS" : "TOPICO",
+        "SULFADIAZINA PRATA 1% (10MG/GR) PT 400GR - DERMAZINE" : "TOPICO",
+        "SULFADIAZINA PRATA 1% (10MG/GR) TB 30GR - DERMAZINE" : "TOPICO",
+        #NISTATINA
+        "NISTATINA100.000UI/ML FR 50ML SUSPENSAO ORAL - NEO MISTATIN" : "TOPICO",
+        "NISTATINA (100.000UI/ML) SER 10ML (R)" : "TOPICO",
+        "NISTATINA 100.000UI/ML SER 10ML (R)" : "TOPICO",
+        "NISTATINA CREME BISNAGA (25.000UI/G) TB 60G" : "PROFILATICO",
+        "NISTATINA 100000UI+OXIDO ZINCO 200MG/G TB 60G POM - DERMODEX" : "PROFILATICO",
+        #OXACILINA
+        "OXACILINA SODICA FA 500MG PO SOL INJ - OXANON" : "COMUNITARIO",
+        #PIPERACILINA_TAZOBACTAM
+        "PIPERACILINA+TAZOBACTAM 2,25 (2G+250MG) PO LIO INJ - TAZOCIN" : "HOSPITALAR",
+        "PIPERACILINA + TAZOBACTAM (4G/500MG) FA PO LIOF INJ -TAZOCIN" : "HOSPITALAR",
+        #POLIMIXINAB
+        "BEDFORDPOLY-B 500.000 UI PO LIOFILO INJ - POLIMIXINA B" : "MMR",
+        "POLIMIXINA B BASE FA 500.000 UI PO LIOF INJ - BEDFORDPOLY-B" : "MMR",
+        "POLIMIXINA B BASE FA 500.000 UI PO LIOF INJ - SPOX" : "MMR",
+        #RIFAMPICINA
+        "RIFAMPICINA 300MG CAPS DURA - RIFALDIN" : "OUTROS",
+        #SULFAMETOXAZOL_TRIMETOPRIM
+        "SULFAMETOXAZOL 400MG + TRIMETOPRIMA 80MG COMP - BACTRIM" : "OUTROS",
+        "SULFAMETOXAZOL 800MG + TRIMETOPRIMA 160MG CAPS - BACTRIM" : "OUTROS",
+        "SULFAMETOXAZOL 800MG + TRIMETOPRIMA 160MG COMP - BACTRIM" : "OUTROS",
+        "SULFAMETOXAZOL+TRIMETOPRIM (200MG+40MG/5ML) FR 100ML BACTRIM" : "OUTROS",
+        "SULFAMETOXAZ+TRIMETOPRIMA (400+80MG/5ML) INJ - BAC SULFITRIN" : "OUTROS",
+        #TEICOPLANINA
+        "TEICOPLANINA FA 200MG PO LIOF INJ - TARGOCID" : "MMR",
+        "TEICOPLANINA FA 400MG PO LIOF INJ - TARGOCID" : "MMR",
+        #TOBRAMICINA 
+        "TOBRAMICINA (3MG/ML) FR 5ML SOL OFT - TOBREX" : "TOPICO",
+        #VANCOMICINA
+        "VANCOMICINA FA 500MG PO INJ - VANCOCINA" : "HOSPITALAR",
+        #VORICONAZOL
+        "VORICONAZOL 200MG COMP REV - VFEND" : "ANTIFUNGICO",
+        "VORICONAZOL IV FR 200MG PO SOL INF - VFEND" : "ANTIFUNGICO",
+        "VORICONAZOL IV FR 200MG PO SOL INF - VFEND IV" : "ANTIFUNGICO",
+    }
+
+    c["atb"] = c["atb"].apply(lambda x: translate_atb[str(x).strip().upper()] if str(x).upper().strip() in translate_atb.keys() else 'OUTROS')
+
+    desejos = ['COMUNITARIO', 'TOPICO', 'INTERMEDIARIO',
+        'HOSPITALAR', 'MMR', 'ANTIFUNGICO', 'OUTROS', 'PROFILATICO'
+    ]
+    c = maestro.create_dummy_vectorized(df= c,column= "atb", arrayDeDesejos= desejos)
+
+    categ_atb = {
+        'COMUNITARIO': 1,
+        'PROFILATICO': 1,
+        'OUTROS': 2,
+        'TOPICO': 3,
+        'INTERMEDIARIO': 4,
+        'HOSPITALAR': 5,
+        'MMR': 6,
+        'ANTIFUNGICO': 6
+    }
+
+    c["atb_importancia"] = c["atb"].map(categ_atb).fillna(0).astype(int)
+
+    #-------------pivot de vias passado---------
+    #translate_via = {
+    #    'VV': "PARENTERAL",
+    #    'EV': "PARENTERAL",
+    #    'IV': "PARENTERAL",
+    #    'EVB': "PARENTERAL",
+    #    'IN': "PARENTERAL",
+    #    'IM': "PARENTERAL",
+    #    'TO': "TOPICO",
+    #    'OF': "TOPICO",
+    #    'AO': "TOPICO",
+    #    'HIP': "OUTRO",
+    #    'SC': "OUTRO",
+    #    'BE': "OUTRO",
+    #    'JN': "ENTERAL",
+    #    'TQ': "ENTERAL",
+    #    'GT': "ENTERAL",
+    #    'SGA': "ENTERAL",
+    #    'SEN': "ENTERAL",
+    #    'VO': "ENTERAL",
+    #}
+    #c['via'] = c['via'].apply(lambda x: translate_via[str(x).strip().upper()] if str(x).strip().upper() in translate_via.keys() else "OUTRO")
+    #desejos = ['PARENTERAL', 'TOPICO', 'ENTERAL']#, 'OUTRO']
+    #c = maestro.create_dummy_vectorized(df= c,column= "via",  arrayDeDesejos= desejos)
+
+    #------tradução de vias nova --------
+    translate_via = {
+        'VV': 4,
+        'EV': 4,
+        'IV': 4,
+        'EVB': 4,
+        'IN': 3,
+        'IM': 3,
+        'TO': 1,
+        'OF': 1,
+        'AO': 1,
+        'HIP': 1,
+        'SC': 1,
+        'BE': 1,
+        'JN': 2,
+        'TQ': 2,
+        'GT': 2,
+        'SGA': 2,
+        'SEN': 2,
+        'VO': 2
+    }
+    c["via_importancia"]= c["via"].map(translate_via).fillna(0).astype(int)
+
+    colunas = ["registro", "cd_pre_med"]
+    c = maestro.to_int(df= c, arrayColumns= colunas)
+
+    tuplas = [(",", ".")]
+    c = maestro.replace_values_list(df= c, column= "dose", arrayDeTuplas= tuplas)
+
+    colunas = [
+        "prescription_date",
+        "atb"
+    ]
+    c = maestro.remove_columns(df= c, arrayColumns= colunas)
+    
+    novosNomes = {
+        "atb_copy": "atb",
+    }
+    c = maestro.rename_columns(df= c, DictColumns= novosNomes)
+
+    dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "imparare2_prescricoesantibiotico_prepared_teste", if_exists=  "append")
+
+def main():
+    replace =True
+    if replace:
+        create_query = """
+            DROP TABLE IF EXISTS imparare2_prescricoesantibiotico_prepared_teste;
+            CREATE UNLOGGED TABLE IF NOT EXISTS imparare2_prescricoesantibiotico_prepared_teste (
+                registro INTEGER,
+                cd_pre_med INTEGER,
+                dthr_prescricao TIMESTAMP,
+                atb TEXT NULL,
+                dose TEXT NULL,
+                unidade TEXT NULL,
+                frequencia TEXT NULL,
+                via TEXT NULL,
+                via_importancia INTEGER NULL,
+                atb_importancia INTEGER NULL,
+                "atb_COMUNITARIO" INTEGER NULL,
+                "atb_TOPICO" INTEGER NULL,
+                "atb_INTERMEDIARIO" INTEGER NULL,
+                "atb_HOSPITALAR" INTEGER NULL,
+                "atb_MMR" INTEGER NULL,
+                "atb_ANTIFUNGICO" INTEGER NULL,
+                "atb_OUTROS" INTEGER NULL,
+                "atb_PROFILATICO" INTEGER NULL,
+                "via_PARENTERAL" INTEGER NULL,
+                "via_ENTERAL" INTEGER NULL,
+                "via_TOPICO" INTEGER NULL,
+                "via_OUTRO" INTEGER NULL,
+                attendance_type TEXT NULL
+            );
+            """
+        dataRequest.execute(queryText= create_query)
+
+    append_query = f"""
+        SELECT
+            registro AS registro,
+            MAX("CD_PRE_MED") AS cd_pre_med,
+            prescription_date AS dthr_prescricao,
+            atb AS atb,
+            MAX("DOSE")::text AS dose,
+            MAX("UNID") AS unidade,
+            MAX("FREQUENCIA") AS frequencia,
+            MAX("VIA") AS via,
+            'I' AS attendance_type
+        FROM(
+            SELECT
+                record_id AS registro,
+                FIRST_VALUE(pre_med_id) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "CD_PRE_MED",
+                prescription_date AS prescription_date,
+                antibiotic AS atb,
+                FIRST_VALUE(dosage) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "DOSE",
+                FIRST_VALUE(antibiotic_unity) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "UNID",
+                FIRST_VALUE(frequency) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "FREQUENCIA",
+                FIRST_VALUE(via) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "VIA"            
+            FROM prescriptions
+            where record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()}
+        ) p
+        GROUP BY registro, prescription_date, atb;
+    """
+
+    df_iterator = dataRequest.get_data(queryText= append_query, chunck = 2000)
+    with Pool(processes= cpu_count()) as pool:
+        for _ in pool.imap_unordered(worker, df_iterator):
+            pass
+
+if __name__ == "__main__":
+    main()

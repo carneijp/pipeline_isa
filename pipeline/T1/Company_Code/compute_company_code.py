@@ -1,0 +1,57 @@
+from ImpararePackage import dataRequest
+from ImpararePackage import maestro
+from multiprocessing import Pool, cpu_count
+import pandas as pd
+
+def worker(c:pd.DataFrame):
+    dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "imparare2_company_code", if_exists= "append")
+
+
+def main():
+    dataRequest.execute('CREATE INDEX IF NOT EXISTS hospitalization_record_id_idx ON  hospitalization (record_id); ', isWellheadEngine= True)
+    
+    dataRequest.execute('CREATE INDEX IF NOT EXISTS hospitalization_attendance_id_idx ON  hospitalization (attendance_id); ', isWellheadEngine= True)
+    replace =True
+
+    if replace:
+        create_query = """
+            DROP TABLE IF EXISTS imparare2_company_code;
+            CREATE UNLOGGED TABLE imparare2_company_code (
+                record_id INTEGER,
+                attendance_id INTEGER,
+                attendance_date DATE,
+                hospital_discharge_date DATE,
+                company_code TEXT,
+                hospital_id TEXT
+            );
+        """
+        dataRequest.execute(create_query)
+
+    append_query = f"""
+        select 
+            distinct on (
+                a.record_id, 
+                a.attendance_id,
+                a.attendance_date,
+                a.company_code
+            )
+            a.record_id, 
+            a.attendance_id,
+            a.attendance_date,
+            a.hospital_discharge_date,
+            a.company_code, 
+            h."ID" as hospital_id
+        from hospitalization a
+        INNER JOIN hospitals as h 
+            ON h."HOSPITAL_ID"::text = a.company_code::text
+        WHERE a.record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()};
+    """
+    
+    df_iterator = dataRequest.get_data(queryText= append_query, chunck= 2000)
+    with Pool(processes= cpu_count()) as pool:
+        for _ in pool.imap_unordered(worker, df_iterator):
+            pass
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,113 @@
+version: '3.11'
+
+services:
+  postgres_isa:
+    image: postgres:18.3
+    shm_size: 4g
+    restart: always
+    environment:
+      POSTGRES_DB: db_isa
+      POSTGRES_USER: isa
+      POSTGRES_PASSWORD: teste123
+    ports:
+      - "5434:5432"
+    command:
+      - "postgres"
+      # Conexões
+      - "-c"
+      - "max_connections=200"
+      # Memória (host 32 GB)
+      - "-c"
+      - "shared_buffers=12GB"
+      - "-c"
+      - "effective_cache_size=24GB"
+      - "-c"
+      - "work_mem=1024MB"
+      - "-c"
+      - "maintenance_work_mem=2GB"
+      - "-c" 
+      - "autovacuum_work_mem=1GB"
+      # I/O hints (NVMe)
+      - "-c"
+      - "effective_io_concurrency=256"
+      - "-c"
+      - "random_page_cost=1.1"
+      # WAL / checkpoints: menos bytes e picos menores
+      - "-c"
+      - "wal_compression=on"
+      - "-c" 
+      - "wal_buffers=128MB"
+      - "-c"
+      - "max_wal_size=64GB"
+      - "-c"
+      - "min_wal_size=4GB"
+      - "-c"
+      - "checkpoint_timeout=30min"
+      - "-c"
+      - "checkpoint_completion_target=0.95"
+      - "-c"
+      - "wal_writer_flush_after=2MB"
+      - "-c"
+      - "backend_flush_after=0"         # 0 = desabilita (ou use 256 = 2MB máx permitido)
+      # bgwriter mais suave
+      - "-c"
+      - "bgwriter_lru_maxpages=1500"
+      - "-c"
+      - "bgwriter_lru_multiplier=2.0"
+      # Autovacuum contínuo (evita bursts)
+      - "-c"
+      - "autovacuum_naptime=20s"
+      - "-c"
+      - "autovacuum_vacuum_cost_limit=1200"
+      - "-c"
+      - "autovacuum_vacuum_cost_delay=2ms"
+      # --- Observability
+      - "-c" 
+      - "track_io_timing=on"                # NEW: measure I/O time in plans
+      - "-c" 
+      - "shared_preload_libraries=pg_stat_statements"  # NEW
+      - "-c"
+      - "pg_stat_statements.max=10000"
+      - "-c"
+      - "pg_stat_statements.track=all"
+      # Logs úteis
+      - "-c"
+      - "log_checkpoints=on"
+      - "-c"
+      - "log_min_duration_statement=5000"
+      # Paralelismo (32 threads)
+      - "-c"
+      - "max_worker_processes=16"
+      - "-c"
+      - "max_parallel_workers=16"
+      - "-c"
+      - "max_parallel_workers_per_gather=8"
+      # JIT pode atrapalhar em cargas simples
+      - "-c"
+      - "jit=off"
+    volumes:
+      - /Desktop/neo-isa-data/:/var/lib/postgresql
+    networks:
+      - pipeline-network
+
+  pipeline_isa:
+    build: .
+    image: python_pipeline
+    restart: always
+    depends_on:
+      - postgres_isa
+    environment:
+      - CLIENT_NAME=isa
+      - DATABASE_HOST=postgres_isa
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=db_isa
+      - DATABASE_USER=isa
+      - DATABASE_PASSWORD=teste123
+    networks:
+      - pipeline-network
+
+volumes:
+  postgres-data:
+
+networks:
+  pipeline-network:
