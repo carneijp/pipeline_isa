@@ -12,19 +12,21 @@ def main():
     colunas_download = {
         "record_id": "integer",
         "created_at": "date",
-        "pre_med_id": "integer",
+        #"pre_med_id": "integer",
         "provider_profile": "text",
         "attendance_type": "text",
         "evolution_date": "timestamp",
         "unity_code_and_description": "text",
-        "evolution_description": "text"
+        "evolution_description": "text",
+        "adulthood": "text",
+        "id_hospital": "integer",
     }
     query_dowloader = f"""
         SELECT 
            {', '.join([f'{k}::{v}' for k, v in colunas_download.items()])}
         FROM evolutions
         WHERE adulthood = 'Pediatrico'
-            AND company_code in {maestro.get_hospitals_allowed_process_string_condition()}
+            -- AND company_code in {maestro.get_hospitals_allowed_process_string_condition()}
             AND record_id IS NOT NULL
     """
 
@@ -55,9 +57,9 @@ def main():
         dataRequest.execute(replace_query)
 
         # Index para otimizar busca nas proximas queries
-        dataRequest.execute("CREATE INDEX IF NOT EXISTS idx_evo_group_by ON evolutions(record_id, pre_med_id, provider_profile, evolution_date, unity_code_and_description, attendance_type);")
+        dataRequest.execute("CREATE INDEX IF NOT EXISTS idx_evo_group_by ON evolutions(record_id, provider_profile, evolution_date, unity_code_and_description, attendance_type);")
 
-    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_evolutions_created_at_record_id ON evolutions (company_code, (created_at::date), record_id);"""
+    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_evolutions_created_at_record_id ON evolutions ((created_at::date), record_id);""" #tirado company_code do index
     dataRequest.execute(create_index_wellhead, isWellheadEngine= True)
     create_index_local = """CREATE INDEX IF NOT EXISTS idx_evolutions_created_at_record_id ON evolutions (created_at, record_id);"""
     dataRequest.execute(create_index_local)

@@ -3,7 +3,7 @@ from ImpararePackage import dataRequest
 def main():
     """Esse script baixa 10 linhas não tem porque paralelizar"""
     print("Iniciando downloader_hospitals")
-    query_dowloader = "select * FROM public.hospitals"
+    query_dowloader = "select * FROM public.hospital"
     replace = True
 
     df = dataRequest.get_data(queryText= query_dowloader, isWellheadEngine=True)

@@ -13,11 +13,11 @@ from sqlalchemy.pool import NullPool
 chunckPadrao = 2000
 
 
-ELASTICSEARCH_LOGIN = "elastic"
-ELASTICSEARCH_PASSWORD = "Qu@lis2006*"
-# ELASTICSEARCH_URL = "https://elasticsearch.roboisa.com.br/"
-ELASTICSEARCH_URL = "" # "https://elc.roboisa.com.br/"
-ELASTICSEARCH_CONNECTION = Elasticsearch(hosts= ELASTICSEARCH_URL, basic_auth= (ELASTICSEARCH_LOGIN, ELASTICSEARCH_PASSWORD), request_timeout=300)
+# ELASTICSEARCH_LOGIN = "elastic"
+# ELASTICSEARCH_PASSWORD = "Qu@lis2006*"
+# # ELASTICSEARCH_URL = "https://elasticsearch.roboisa.com.br/"
+# ELASTICSEARCH_URL = "" # "https://elc.roboisa.com.br/"
+# ELASTICSEARCH_CONNECTION = Elasticsearch(hosts= ELASTICSEARCH_URL, basic_auth= (ELASTICSEARCH_LOGIN, ELASTICSEARCH_PASSWORD), request_timeout=300)
 
 REMOTELOGIN = ""
 REMOTEPASSOWORD = ""
