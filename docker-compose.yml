@@ -86,7 +86,7 @@ services:
       - "-c"
       - "jit=off"
     volumes:
-      - /Desktop/neo-isa-data/:/var/lib/postgresql
+      - /Desktop/isa-data/:/var/lib/postgresql
     networks:
       - pipeline-network
 
