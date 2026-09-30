@@ -17,16 +17,14 @@ def main():
         "value": "float8",
         "measurement_unity": "text",
         "provider_profile": "text",
-        "attendance_type": "text"
+        "attendance_type": "text",
+        "id_hospital": "integer"
     }
     query_downloader = f"""
         SELECT DISTINCT
             {', '.join([f'{k}::{v}' for k, v in colunas_download.items()])}
         FROM vital_signs
-        WHERE adulthood = 'Pediatrico'
-            AND value IS NOT NULL
-            AND company_code in {maestro.get_hospitals_allowed_process_string_condition()}
-            AND record_id IS NOT NULL
+        WHERE value IS NOT NULL
             AND collection_date IS NOT NULL
     """
     
@@ -58,7 +56,7 @@ def main():
         """
         dataRequest.execute(replace_query)
 
-    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_vital_signs_created_at_record_id ON vital_signs (company_code, (created_at::date), record_id);"""
+    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_vital_signs_created_at_record_id ON vital_signs (id_hospital, (created_at::date), record_id);"""
     dataRequest.execute(create_index_wellhead, isWellheadEngine= True)
     create_index_local = """CREATE INDEX IF NOT EXISTS idx_vital_signs_created_at_record_id ON vital_signs (created_at, record_id);"""
     dataRequest.execute(create_index_local)

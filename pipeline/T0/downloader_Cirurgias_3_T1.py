@@ -10,24 +10,24 @@ def worker_uploader(c: pd.DataFrame) -> int:
 def main():
     print ("Inciando downloader Cirurgias 3")
     colunas_download = {
-        "record_id": "integer", 
-        "created_at": "date",
-        "attendance_id": "integer", 
-        "surgery_notice_id": "integer", 
-        "surgery_description": "text", 
-        "surgery_start_date": "timestamp",
-        "surgery_end_date": "timestamp", 
-        "provider_id": "integer", 
-        "provider_name": "text", 
-        "attendance_type": "text"
+        "created_at": ("surgeries_rgo_names.created_at", "date"),
+        "record_id": ("surgeries_rgo_names.record_id", "integer"), 
+        "attendance_id": ("surgeries_rgo_names.attendance_id", "integer"), 
+        "attendance_type": ("surgeries_rgo_names.attendance_type", "text"),
+        "provider_name": ("surgeries_rgo_names.provider_name", "text"),
+        "surgery_start_date": ("surgeries_rgo_names.surgery_start_date", "timestamp"), 
+        "surgery_end_date": ("surgeries_rgo_names.surgery_end_date", "timestamp"),
+        "surgery_description": ("surgeries_rgo_names.surgery_description", "text"),
+        "id_hospital": ("surgeries_rgo_names.id_hospital","integer"),
     }
+       
+    colunas_destino = {k: v[1] for k, v in colunas_download.items()}
+    select_fields = [f"{v[0]}::{v[1]} AS {k}" for k, v in colunas_download.items()]
+    
     query_downloader = f"""
         SELECT 
-           {', '.join([f'{k}::{v}' for k, v in colunas_download.items()])}
+           {', '.join(select_fields)}
         FROM surgeries_rgo_names
-        WHERE adulthood = 'Pediatrico'
-            AND company_code in {maestro.get_hospitals_allowed_process_string_condition()}
-            AND record_id IS NOT NULL
     """
 
     replace = True
@@ -43,7 +43,7 @@ def main():
 
         last_date = df.iloc[0]["created_at"]
         if last_date is not None and not pd.isna(last_date):
-            query_downloader += f" AND date(created_at) > '{last_date}'"
+            query_downloader += f" WHERE date(created_at) > '{last_date}'"
             print(f"Buscando todos os dados novos desde: {last_date}")
             replace = False
     except:
@@ -53,12 +53,12 @@ def main():
         replace_query = f"""
             DROP TABLE IF EXISTS surgeries_rgo_names;
             CREATE UNLOGGED TABLE surgeries_rgo_names (
-                {', '.join([f'{k} {v}' for k, v in colunas_download.items()])}
+                {', '.join([f'{k} {v}' for k, v in colunas_destino.items()])}
             );
         """
         dataRequest.execute(replace_query)
 
-    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_surgeries_rgo_names_created_at_record_id ON surgeries_rgo_names (company_code, (created_at::date), record_id);"""
+    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_surgeries_rgo_names_created_at_record_id ON surgeries_rgo_names (id_hospital, (created_at::date), record_id);"""
     dataRequest.execute(create_index_wellhead, isWellheadEngine= True)
     create_index_local = """CREATE INDEX IF NOT EXISTS idx_surgeries_rgo_names_created_at_record_id ON surgeries_rgo_names (created_at, record_id);"""
     dataRequest.execute(create_index_local)

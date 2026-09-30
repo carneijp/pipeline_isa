@@ -10,135 +10,72 @@ def main():
         DROP TABLE IF EXISTS patients_to_update;
         CREATE TABLE patients_to_update AS (
             SELECT 
-                DISTINCT record_id 
+                DISTINCT 
+                    record_id,
+                    id_enterprise
             FROM (
                 SELECT 
-                    DISTINCT record_id 
-                FROM evolutions 
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
+                    DISTINCT record_id, h.id_enterprise 
+                FROM evolutions e
+                inner join hospitals h 
+                    on e.id_hospital = h.id_hospital
+                WHERE e.created_at > coalesce((SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1), DATE('2022-01-01')) - interval '1 day'
                 UNION ALL
                 SELECT 
-                    DISTINCT record_id 
-                FROM evolutions_followup
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
+                    DISTINCT record_id, h.id_enterprise 
+                FROM exams_reports e
+                inner join hospitals h 
+                    on e.id_hospital = h.id_hospital
+                WHERE e.created_at > coalesce((SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1), DATE('2022-01-01')) - interval '1 day'
                 UNION ALL
                 SELECT 
-                    DISTINCT record_id 
-                FROM exam_followup_reports
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
+                    DISTINCT record_id , h.id_enterprise 
+                FROM hospitalization e
+                inner join hospitals h 
+                    on e.id_hospital = h.id_hospital
+                WHERE e.created_at > coalesce((SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1), DATE('2022-01-01')) - interval '1 day'
                 UNION ALL
                 SELECT 
-                    DISTINCT record_id 
-                FROM exams_reports
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
+                    DISTINCT record_id, h.id_enterprise
+                FROM patients_records e
+                inner join hospitals h 
+                    on e.id_hospital = h.id_hospital
+                WHERE e.created_at > coalesce((SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1), DATE('2022-01-01')) - interval '1 day'
                 UNION ALL
                 SELECT 
-                    DISTINCT record_id 
-                FROM hospitalization
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
+                    DISTINCT record_id, h.id_enterprise 
+                FROM prescriptions e
+                inner join hospitals h 
+                    on e.id_hospital = h.id_hospital
+                WHERE e.created_at > coalesce((SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1), DATE('2022-01-01')) - interval '1 day'
                 UNION ALL
                 SELECT 
-                    DISTINCT record_id 
-                FROM patients_records
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
+                    DISTINCT record_id, h.id_enterprise
+                FROM surgeries_rgo e
+                inner join hospitals h 
+                    on e.id_hospital = h.id_hospital
+                WHERE e.created_at > coalesce((SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1), DATE('2022-01-01')) - interval '1 day'
                 UNION ALL
                 SELECT 
-                    DISTINCT record_id 
-                FROM prescriptions
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
+                    DISTINCT record_id, h.id_enterprise
+                FROM surgeries_rgo_names e
+                inner join hospitals h 
+                    on e.id_hospital = h.id_hospital
+                WHERE e.created_at > coalesce((SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1), DATE('2022-01-01')) - interval '1 day'
                 UNION ALL
                 SELECT 
-                    DISTINCT record_id 
-                FROM prescriptions_followup
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
+                    DISTINCT record_id, h.id_enterprise
+                FROM vital_signs e
+                inner join hospitals h 
+                    on e.id_hospital = h.id_hospital
+                WHERE e.created_at > coalesce((SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1), DATE('2022-01-01')) - interval '1 day'
                 UNION ALL
                 SELECT 
-                    DISTINCT record_id 
-                FROM surgeries_rgo
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
-                UNION ALL
-                SELECT 
-                    DISTINCT record_id 
-                FROM surgeries_rgo_followup
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
-                UNION ALL
-                SELECT 
-                    DISTINCT record_id 
-                FROM surgeries_rgo_names
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
-                UNION ALL
-                SELECT 
-                    DISTINCT record_id 
-                FROM surgeries_rgo_names_followup
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
-                UNION ALL
-                SELECT 
-                    DISTINCT record_id 
-                FROM vital_signs
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
-                UNION ALL
-                SELECT 
-                    DISTINCT record_id 
-                FROM vital_signs_followup
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
-                UNION ALL
-                SELECT 
-                    DISTINCT record_id 
-                FROM xray_followup_report
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
-                UNION ALL
-                SELECT 
-                    DISTINCT record_id 
-                FROM xrays_reports
-                WHERE created_at > coalesce(
-                    (SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1),
-                    DATE('2022-01-01')
-                ) - interval '1 day'
+                    DISTINCT record_id, h.id_enterprise
+                FROM xrays_reports e
+                inner join hospitals h 
+                    on e.id_hospital = h.id_hospital
+                WHERE e.created_at > coalesce((SELECT execution_date FROM pipeline_execution_log pel ORDER BY id DESC LIMIT 1), DATE('2022-01-01')) - interval '1 day'
             ) a
         );
 

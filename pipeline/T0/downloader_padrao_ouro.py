@@ -14,7 +14,7 @@ def main():
         "tipo_infeccao": "text",
         "outra_infec": "text",
         "avaliacao_responsavel": "text",
-        "company_id": "uuid"
+        "company_id": "uuid" # isso vai ser um problema que teremos que corrigir na interface pois nao teremos mais o company_id
     }
     query_dowloader = f"""
         select  

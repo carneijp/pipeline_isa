@@ -9,10 +9,11 @@ def main():
         CREATE UNLOGGED TABLE "imparare2_t1_cirurgias_4_6" AS
             SELECT RGO."patient_id"
                 , RGO."dt_criacao" as "data"
-                , string_agg(RGO."texto_cirurgia",' | ' order by RGO."dthr_criacao") AS "laudos_dia"
+                , string_agg(RGO."texto_cirurgia",' | ' order by RGO."dthr_criacao") AS "laudos_dia",
+                RGO.id_enterprise
             FROM "imparare2_t1_cirurgias_4_5" RGO
                 WHERE RGO."tipo_atendimento" = 'I'
-            GROUP BY RGO."patient_id", RGO."dt_criacao";
+            GROUP BY RGO."patient_id", RGO.id_enterprise, RGO."dt_criacao";
         """)
 
     dataRequest.execute("DROP TABLE IF EXISTS imparare2_t1_cirurgias_4_5;")

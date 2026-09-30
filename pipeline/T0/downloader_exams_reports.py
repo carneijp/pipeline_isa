@@ -10,23 +10,24 @@ def worker_uploader(c: pd.DataFrame) -> int:
 def main():
     print ("Iniciando downloader_exams_reports")
     colunas_download = {
-        "record_id": "integer",
-        "created_at": "date",
-        "exam_lab_id": "integer",
-        "exam_lab_name": "text",
-        "laboratory_request_date": "timestamp",
-        "laboratory_request_delivery_date": "timestamp",
-        "exam_result_field_name": "text",
-        "exam_result_description": "text"
+        "record_id": ("exams_reports.record_id", "integer"),
+        "created_at": ("exams_reports.created_at", "date"),
+        "exam_lab_name": ("exams_reports.exam_lab_name", "text"),
+        "laboratory_request_date": ("exams_reports.laboratory_request_date", "timestamp"),
+        "laboratory_request_delivery_date": ("exams_reports.laboratory_request_delivery_date", "timestamp"),
+        "exam_result_field_name": ("exams_reports.exam_result_field_name", "text"),
+        "exam_result_description": ("exams_reports.exam_result_description", "text"),
+        "id_hospital": ("exams_reports.id_hospital", "integer"),
     }
+
+    colunas_destino = {k: v[1] for k, v in colunas_download.items()}
+    select_fields = [f"{v[0]}::{v[1]} AS {k}" for k, v in colunas_download.items()]
+    
     query_dowloader = f"""
         SELECT DISTINCT
-        {', '.join([f'{k}::{v}' for k, v in colunas_download.items()])}
+        {', '.join(select_fields)}
     FROM exams_reports
-    WHERE adulthood = 'Pediatrico'
-	    AND company_code in {maestro.get_hospitals_allowed_process_string_condition()}
-    	AND record_id IS NOT NULL
-    	AND laboratory_request_date IS NOT NULL
+    WHERE laboratory_request_date IS NOT NULL
     	AND laboratory_request_delivery_date IS NOT NULL
     """
 
@@ -53,12 +54,12 @@ def main():
         replace_query = f"""
             DROP TABLE IF EXISTS exams_reports;
             CREATE UNLOGGED TABLE exams_reports (
-                {', '.join([f'{k} {v}' for k, v in colunas_download.items()])}
+                {', '.join([f'{k} {v}' for k, v in colunas_destino.items()])}
             );
         """
         dataRequest.execute(replace_query)
 
-    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_exams_reports_created_at_record_id ON exams_reports (company_code, (created_at::date), record_id);"""
+    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_exams_reports_created_at_record_id ON exams_reports (id_hospital,(created_at::date), record_id);"""
     dataRequest.execute(create_index_wellhead, isWellheadEngine= True)
     create_index_local = """CREATE INDEX IF NOT EXISTS idx_exams_reports_created_at_record_id ON exams_reports (created_at, record_id);"""
     dataRequest.execute(create_index_local)

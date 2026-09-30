@@ -20,8 +20,11 @@ def main():
             evolution_date AS dthr_evolucao,
             unity_code_and_description AS unidade, 
             STRING_AGG(distinct evolution_description, '. ')  AS texto_evolucao,
-            attendance_type AS tipo_atendimento
-        FROM evolutions
+            attendance_type AS tipo_atendimento,
+            h.id_enterprise
+        FROM evolutions e
+        inner join hospitals h
+            ON e.id_hospital = h.id_hospital
         WHERE record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()}
         GROUP BY record_id, pre_med_id, provider_profile, evolution_date, unity_code_and_description, attendance_type
     """

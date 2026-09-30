@@ -10,28 +10,28 @@ def worker_uploader(c: pd.DataFrame) -> int:
 def main():
     print ("Iniciando downloader_blood_culture_reports")
     colunas_download = {
-        "created_at": "date",
-        "record_id": "integer", 
-        "attendance_id": "integer", 
-        "exam_lab_name": "text", 
-        "sector_name": "text", 
-        "attendance_type": "text", 
-        "laboratory_request_id": "integer", 
-        "blood_culture_request_date": "timestamp", 
-        "blood_culture_collection_date": "timestamp", 
-        "blood_culture_delivery_date": "timestamp", 
-        "exam_result_question_order_id": "integer", 
-        "exam_result_field_name": "text", 
-        "exam_result_description": "text", 
-        "signature_date": "timestamp"
+        "created_at": ("blood_culture_reports.created_at", "date"),
+        "record_id": ("blood_culture_reports.record_id", "integer"),
+        "attendance_type": ("blood_culture_reports.attendance_type", "text"), 
+        "laboratory_request_id": ("blood_culture_reports.laboratory_request_id", "integer"), 
+        "blood_culture_request_date": ("blood_culture_reports.blood_culture_request_date", "timestamp"), 
+        "blood_culture_collection_date": ("blood_culture_reports.blood_culture_collection_date", "timestamp"),
+        "signature_date": ("blood_culture_reports.signature_date", "timestamp"),
+        "colony_obs_description": ("blood_culture_reports.colony_obs_description", "text"),
+        "material_obs_description": ("blood_culture_reports.material_obs_description", "text"),
+        "material_description": ("blood_culture_reports.material_description", "text"),
+        "bacteriological_description": ("blood_culture_reports.bacteriological_description", "text"),
+        "bacterioscopic_description": ("blood_culture_reports.bacterioscopic_description", "text"),
+        "id_hospital": ("blood_culture_reports.id_hospital", "integer"),
     }
+
+    colunas_destino = {k: v[1] for k, v in colunas_download.items()}
+    select_fields = [f"{v[0]}::{v[1]} AS {k}" for k, v in colunas_download.items()]
+    
     query_dowloader = f"""
         SELECT DISTINCT 
-            {', '.join([f'{k}::{v}' for k, v in colunas_download.items()])}
+            {', '.join(select_fields)}
         FROM blood_culture_reports
-        WHERE blood_culture_reports.adulthood = 'Pediatrico' 
-            AND company_code in {maestro.get_hospitals_allowed_process_string_condition()}
-            AND record_id IS NOT NULL
     """
 
     replace = True
@@ -47,7 +47,7 @@ def main():
 
         last_date = df.iloc[0]["created_at"]
         if last_date is not None and not pd.isna(last_date):
-            query_dowloader += f" AND date(created_at) > '{last_date}'"
+            query_dowloader += f" WHERE date(created_at) > '{last_date}'"
             print(f"Buscando todos os dados novos desde: {last_date}")
             replace = False
     except:
@@ -57,12 +57,12 @@ def main():
         replace_query = f"""
             DROP TABLE IF EXISTS blood_culture_reports;
             CREATE UNLOGGED TABLE blood_culture_reports (
-                {', '.join([f'{k} {v}' for k, v in colunas_download.items()])}
+                {', '.join([f'{k} {v}' for k, v in colunas_destino.items()])}
             );
         """
         dataRequest.execute(replace_query)
 
-    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_blood_culture_reports_created_at_record_id ON blood_culture_reports (company_code, created_at, record_id);"""
+    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_blood_culture_reports_created_at_record_id ON blood_culture_reports (id_hospital, created_at, record_id);"""
     dataRequest.execute(create_index_wellhead, isWellheadEngine= True)
     create_index_local = """CREATE INDEX IF NOT EXISTS idx_blood_culture_reports_created_at_record_id ON blood_culture_reports (created_at, record_id);"""
     dataRequest.execute(create_index_local)

@@ -14,15 +14,13 @@ def main():
         "patient_name": "text",
         "birthdate": "date",
         "sex": "text",
-        "created_at": "date"
+        "created_at": "date",
+        "id_hospital": "integer"
     }
     query_downloader = f"""
         SELECT 
              {', '.join([f'{k}::{v}' for k, v in colunas_download.items()])}
         FROM patients_records
-        WHERE adulthood = 'Pediatrico'
-            AND company_code in {maestro.get_hospitals_allowed_process_string_condition()}
-            AND record_id IS NOT NULL
     """
 
     replace = True
@@ -38,7 +36,7 @@ def main():
 
         last_date = df.iloc[0]["created_at"]
         if last_date is not None and not pd.isna(last_date):
-            query_downloader += f" AND date(created_at) > '{last_date}'"
+            query_downloader += f" WHERE date(created_at) > '{last_date}'"
             print(f"Buscando todos os dados novos desde: {last_date}")
             replace = False
     except:
@@ -53,7 +51,7 @@ def main():
         """
         dataRequest.execute(replace_query)
 
-    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_patients_records_created_at_record_id ON patients_records (company_code, (created_at::date), record_id);"""
+    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_patients_records_created_at_record_id ON patients_records (id_hospital, (created_at::date), record_id);"""
     dataRequest.execute(create_index_wellhead, isWellheadEngine= True)
     create_index_local = """CREATE INDEX IF NOT EXISTS idx_patients_records_created_at_record_id ON patients_records (created_at, record_id);"""
     dataRequest.execute(create_index_local)

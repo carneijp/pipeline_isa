@@ -5,28 +5,20 @@ import pandas as pd
 def main():
     print("Inicinado downloader_xrays_reports")
     colunas_download = {
-        "id": "uuid",
         "created_at": "date",
         "record_id": "integer",
-        "xray_request_id": "integer",
-        "xray_report_id": "integer",
         "xray_exam_description": "text",
-        "xray_request_hour": "time",
-        "xray_delivery_hour": "time",
-        "xray_request_date": "date",
-        "xray_delivery_date": "date",
-        "attendance_type": "text"
+        "xray_content": "text",
+        "xray_request_date": "timestamp",
+        "xray_delivery_date": "timestamp",
+        "attendance_type": "text",
+        "id_hospital": "integer"
     }
     query_dowloader = f"""
         SELECT 
            {', '.join([f'{k}::{v}' for k, v in colunas_download.items()])}
         FROM xrays_reports
-        WHERE xray_request_id IS NOT NULL
-            AND xray_report_id IS NOT NULL
-            AND xray_exam_description IS NOT NULL
-            AND adulthood = 'Pediatrico'
-            AND company_code in {maestro.get_hospitals_allowed_process_string_condition()}
-            AND record_id IS NOT NULL
+        WHERE xray_exam_description IS NOT NULL
             AND xray_request_date IS NOT NULL
             AND xray_delivery_date IS NOT NULL
     """
@@ -60,7 +52,7 @@ def main():
         """
         dataRequest.execute(replace_query)
     
-    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_xrays_reports_created_at_record_id ON xrays_reports (company_code, (created_at::date), record_id);"""
+    create_index_wellhead = """CREATE INDEX IF NOT EXISTS idx_xrays_reports_created_at_record_id ON xrays_reports (id_hospital, (created_at::date), record_id);"""
     dataRequest.execute(create_index_wellhead, isWellheadEngine= True)
     create_index_local = """CREATE INDEX IF NOT EXISTS idx_xrays_reports_created_at_record_id ON xrays_reports (created_at, record_id);"""
     dataRequest.execute(create_index_local)

@@ -16,7 +16,7 @@ def worker(c:pd.DataFrame):
     novosNomes = {
             "record_id": "patient_id",
             "surgery_description": "nome_procedimento",
-            "provider_id": "prestador",
+            #"provider_id": "prestador",
             "provider_name": "nome_medico", 
             "attendance_type": "tipo_atendimento",
             "attendance_id": "id_atendimento"
@@ -44,15 +44,16 @@ def main():
                 patient_id INTEGER,
                 tipo_atendimento TEXT,  
                 id_atendimento INTEGER,
-                surgery_notice_id INTEGER, 
+                -- surgery_notice_id INTEGER, 
                 nome_procedimento TEXT, 
                 dthr_procedimento TIMESTAMP, 
                 dt_procedimento DATE ,
                 dthr_fim_procedimento TIMESTAMP, 
-                prestador INTEGER, 
+                -- prestador INTEGER, 
                 nome_medico TEXT,
                 chave_procedimento TEXT,
-                tempo_de_cirurgia FLOAT
+                tempo_de_cirurgia FLOAT,
+                id_enterprise INTEGER
             );    
         """   
         dataRequest.execute(create_query)
@@ -61,24 +62,25 @@ def main():
         SELECT 
             record_id, 
             attendance_id,
-            surgery_notice_id, 
+            -- surgery_notice_id, 
             surgery_description, 
             DATE_TRUNC('minute', "surgery_start_date")::timestamp as dthr_procedimento, 
             surgery_start_date::date as "dt_procedimento",
             DATE_TRUNC('minute', "surgery_end_date")::timestamp as dthr_fim_procedimento, 
-            provider_id, 
+            -- provider_id, 
             provider_name, 
-            attendance_type
+            attendance_type,
+            h.id_enterprise
         FROM surgeries_rgo_names
-        WHERE record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()}
+        JOIN hospitals h ON surgeries_rgo_names.id_hospital = h.id_hospital
+        -- WHERE record_id in (select distinct record_id from patients_to_update) -- or 1 = {maestro.get_must_update_all_patients()}
         GROUP BY record_id, 
+                h.id_enterprise,
                 attendance_id, 
-                surgery_notice_id, 
                 surgery_description,
                 surgery_start_date, 
                 surgery_start_date::date,
                 surgery_end_date,
-                provider_id, 
                 provider_name, 
                 attendance_type;
     """
