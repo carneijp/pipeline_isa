@@ -3,7 +3,7 @@ from ImpararePackage import maestro
 
 def main():
     query = """
-        SELECT * FROM "imparare2_t1_cirurgias_4_4"
+        SELECT * FROM imparare2_t1_cirurgias_4_4
     """
 
     df = dataRequest.get_data(queryText= query)

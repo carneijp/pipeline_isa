@@ -62,18 +62,17 @@ def main():
         SELECT 
             record_id, 
             attendance_id,
-            -- surgery_notice_id, 
             surgery_description, 
             DATE_TRUNC('minute', "surgery_start_date")::timestamp as dthr_procedimento, 
             surgery_start_date::date as "dt_procedimento",
             DATE_TRUNC('minute', "surgery_end_date")::timestamp as dthr_fim_procedimento, 
-            -- provider_id, 
             provider_name, 
             attendance_type,
             h.id_enterprise
         FROM surgeries_rgo_names
-        JOIN hospitals h ON surgeries_rgo_names.id_hospital = h.id_hospital
-        -- WHERE record_id in (select distinct record_id from patients_to_update) -- or 1 = {maestro.get_must_update_all_patients()}
+        INNER JOIN hospitals h 
+            ON surgeries_rgo_names.id_hospital = h.id_hospital
+        -- TODO: add inner join em patients to update assim filtrando dados somente de quem irá atualizar
         GROUP BY record_id, 
                 h.id_enterprise,
                 attendance_id, 
