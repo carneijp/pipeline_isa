@@ -8,33 +8,35 @@ from multiprocessing import Pool, cpu_count
 
 # TODO: Manter visao aqui para possiveis erros de janelas, periodo entre atendimento e alta que devem ter janelas criadas.
 def worker(c:pd.DataFrame):
-    df_filtered = c[c['dt_alta'].isna()]
+    df_filtered = c[c['dthr_alta'].isna()]
     linesToDrop = []
-
+    # TODO: como melhorar isso aqui? Talvez fazer via sql seja melhor
     for index in df_filtered.index:
         df_paciente = c[c['registro'] == c.iloc[index]['registro']]
-        possiveis_datas = df_paciente[df_paciente['dt_atendimento'] > c.iloc[index]['dt_atendimento']]
+        possiveis_datas = df_paciente[df_paciente['dthr_atendimento'] > c.iloc[index]['dthr_atendimento']]
         if len(possiveis_datas) > 0:
-            possiveis_datas.sort_values('dt_atendimento', ascending= True, inplace= True)
-            day = possiveis_datas.iloc[0]['dt_atendimento']
+            possiveis_datas.sort_values('dthr_atendimento', ascending= True, inplace= True)
+            day = possiveis_datas.iloc[0]['dthr_atendimento']
             day = (day - relativedelta(days= 1))
-            c.loc[index, 'dt_alta'] = day
+            c.loc[index, 'dthr_alta'] = day
         else:
-            df_por_dia = df_paciente[df_paciente['dt_atendimento'].dt.day == c.iloc[index]['dt_atendimento'].day] 
-            df_por_mes = df_por_dia[df_por_dia['dt_atendimento'].dt.month == c.iloc[index]['dt_atendimento'].month]
-            df_por_ano = df_por_mes[df_por_mes['dt_atendimento'].dt.year == c.iloc[index]['dt_atendimento'].year]
+            df_por_dia = df_paciente[df_paciente['dthr_atendimento'].dt.day == c.iloc[index]['dthr_atendimento'].day] 
+            df_por_mes = df_por_dia[df_por_dia['dthr_atendimento'].dt.month == c.iloc[index]['dthr_atendimento'].month]
+            df_por_ano = df_por_mes[df_por_mes['dthr_atendimento'].dt.year == c.iloc[index]['dthr_atendimento'].year]
             if len(df_por_ano) > 1:
                 linesToDrop.append(index)
             else:
                 today = datetime.now()
                 today = (today - relativedelta(days= 1))
                 day = datetime(year= today.year, month= today.month, day= today.day, hour= 23, minute= 59, second= 59)
-                c.loc[index, 'dt_alta'] = day
+                c.loc[index, 'dthr_alta'] = day
 
     c.drop(index= linesToDrop, inplace= True)
 
-    #c = maestro.parse_date(c, arrayColumns= ["dt_atendimento_parsed", "dt_alta_parsed"], yearfirst=True)
-
+    destinos = ["los"]
+    referencias = [["dthr_atendimento", "dthr_alta"]]
+    c = maestro.difference_time_between_columns_days(df= c, arrayColunasDestino= destinos, arrayColunasReferencia= referencias)
+    
     dataRequest.set_data_on_sql(c, nomeTabelaDestino= "imparare2_internacoes_v2_stacked_by_cd_atendimento", if_exists= "append")
             
 def main():
@@ -46,14 +48,14 @@ def main():
             CREATE UNLOGGED TABLE imparare2_internacoes_v2_stacked_by_cd_atendimento (
                 registro INTEGER,
                 cd_atendimento INTEGER,
-                dt_atendimento TIMESTAMP,
-                dt_alta TIMESTAMP,
+                dthr_atendimento TIMESTAMP,
+                dthr_alta TIMESTAMP,
                 nmconvenio TEXT,
-                "CODUNI||''||DESUNI" TEXT,
-                "CODESP||''||DESESP" TEXT,
-                tipo_clinica TEXT,
+                unidade TEXT,
                 tipo_intern TEXT,
-                alta TEXT
+                alta TEXT,
+                los INTEGER,
+                id_enterprise SMALLINT
             );
         """
         dataRequest.execute(create_query)
@@ -62,39 +64,36 @@ def main():
         SELECT 
             record_id AS registro,
             attendance_id AS cd_atendimento,
-            "dt_atendimento" AS "dt_atendimento",
-            MAX("NMCONVENIO_dku_lst") AS "nmconvenio",
-            MAX("CODUNI||''||DESUNI_dku_lst") AS "CODUNI||''||DESUNI",
-            MAX("CODESP||''||DESESP_dku_lst") AS "CODESP||''||DESESP",
-            MAX("TPCLINICA_dku_lst") AS tipo_clinica,
+            attendance_date AS dthr_atendimento,
+            MAX(nmconvenio) AS nmconvenio,
+            MAX(unidade) AS unidade,
             MAX("TIPOINT_dku_lst") AS tipo_intern,
-            COALESCE(MAX("dt_alta_dku_lst"), (NOW() - interval '1 day')::timestamp) AS "dt_alta",
-            MAX("ALTA_dku_lst") AS alta
+            COALESCE(MAX(dt_alta_dku_lst), (NOW() - interval '1 day')::timestamp) AS dthr_alta,
+            MAX("ALTA_dku_lst") AS alta,
+            NULL AS los,
+            id_enterprise
         FROM (
             SELECT DISTINCT 
                 record_id, 
                 attendance_id, 
-                dt_atendimento, 
-                dt_alta,
-                LAST_VALUE("health_insurance_name") OVER (PARTITION BY "record_id", "attendance_id", "dt_atendimento" ORDER BY "created_at" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "NMCONVENIO_dku_lst",
-                LAST_VALUE("unity_code_and_description") OVER (PARTITION BY "record_id", "attendance_id", "dt_atendimento" ORDER BY "created_at" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "CODUNI||''||DESUNI_dku_lst",
-                LAST_VALUE("clinic_type") OVER (PARTITION BY "record_id", "attendance_id", "dt_atendimento" ORDER BY "created_at" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "CODESP||''||DESESP_dku_lst",
-                LAST_VALUE("clinic_type") OVER (PARTITION BY "record_id", "attendance_id", "dt_atendimento" ORDER BY "created_at" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "TPCLINICA_dku_lst",
-                LAST_VALUE("hospitalization_type") OVER (PARTITION BY "record_id", "attendance_id", "dt_atendimento" ORDER BY "created_at" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "TIPOINT_dku_lst",
-                LAST_VALUE("dt_alta") OVER (PARTITION BY "record_id", "attendance_id", "dt_atendimento" ORDER BY "created_at" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "dt_alta_dku_lst",
-                LAST_VALUE("hospital_discharge_description") OVER (PARTITION BY "record_id", "attendance_id", "dt_atendimento" ORDER BY "created_at" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "ALTA_dku_lst"
-            FROM (SELECT *,
-				       (attendance_date::date + attendance_hour::time) AS "dt_atendimento",
-				       (hospital_discharge_date::date + hospital_discharge_hour::time) AS "dt_alta"
-				FROM "hospitalization" a
-				WHERE "company_code" IS NOT NULL
-				  AND (record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()})
-            ) "dku__subquery" 
+                attendance_date, 
+                hospital_discharge_date,
+                LAST_VALUE(health_insurance_name) OVER (PARTITION BY record_id, id_enterprise, attendance_id, attendance_date ORDER BY created_at ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS nmconvenio,
+                LAST_VALUE(unity_code_and_description) OVER (PARTITION BY record_id, id_enterprise, attendance_id, attendance_date ORDER BY created_at ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS unidade,
+                LAST_VALUE(hospitalization_type) OVER (PARTITION BY record_id, id_enterprise, attendance_id, attendance_date ORDER BY created_at ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "TIPOINT_dku_lst",
+                LAST_VALUE(hospital_discharge_date) OVER (PARTITION BY record_id, id_enterprise, attendance_id, attendance_date ORDER BY created_at ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS dt_alta_dku_lst,
+                LAST_VALUE(hospital_discharge_description) OVER (PARTITION BY record_id, id_enterprise, attendance_id, attendance_date ORDER BY created_at ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "ALTA_dku_lst",
+                h.id_enterprise
+            FROM hospitalization a
+            INNER JOIN hospitals h
+                ON a.id_hospital = h.id_hospital
+            WHERE a.id_hospital IS NOT NULL
         )
-        GROUP BY "record_id", "attendance_id", "dt_atendimento";
-        """
+        GROUP BY record_id, id_enterprise, attendance_id, attendance_date
+        ORDER BY record_id;
+    """
     
-    df_iterator = dataRequest.get_data(queryText= append_query, chunck= 2000)
+    df_iterator = dataRequest.get_data(queryText= append_query, chunck= 20000)
     
     with Pool(processes= cpu_count()) as pool:
         for _ in pool.imap_unordered(worker, df_iterator):
