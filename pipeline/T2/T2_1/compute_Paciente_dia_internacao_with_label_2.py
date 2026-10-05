@@ -4,7 +4,7 @@ def main():
     dataRequest.execute('DROP TABLE IF EXISTS "imparare2_paciente_dia_internacao_with_label_nova"')
     dataRequest.execute("""
         SET synchronous_commit = off;
-        CREATE UNLOGGED TABLE "imparare2_paciente_dia_internacao_with_label_nova" AS
+        CREATE UNLOGGED TABLE imparare2_paciente_dia_internacao_with_label_nova AS
         select 
                 a.registro::int, 
                 a.sexo::text, 
@@ -15,11 +15,10 @@ def main():
                 a.dthr_atendimento::date, 
                 a.nmconvenio::text, 
                 a.unidade::text, 
-                a.especialidade::text, 
-                a.tipo_clinica::text, 
                 a.tipo_intern::text, 
                 a.dthr_alta::date, 
-                a.alta::text
+                a.alta::text,
+                a.id_enterprise::smallint
         from (
             select 
                 int.registro, 
@@ -31,18 +30,18 @@ def main():
                 int.dthr_atendimento, 
                 int.nmconvenio, 
                 int.unidade, 
-                int.especialidade, 
-                int.tipo_clinica, 
                 int.tipo_intern,
-                COALESCE(dthr_alta, (SELECT MAX(e.dthr_evolucao) FROM imparare2_evolucao_prepared as e WHERE e.patient_id = pac.registro)) as dthr_alta, 
-                COALESCE(alta, 'AINDA INTERNADO') as alta
+                COALESCE(dthr_alta, (SELECT MAX(e.dthr_evolucao) FROM imparare2_evolucao_anon_data_trunc as e WHERE e.registro = pac.registro and e.id_enterprise = pac.id_enterprise)) as dthr_alta, 
+                COALESCE(alta, 'AINDA INTERNADO') as alta,
+                pac.id_enterprise
             from generate_series('2020-01-01' , (date_trunc('day', (NOW() + interval '1 day'))::date), '1 day'::interval) dd, 
                 imparare2_pacientes_prepared pac 
-            inner join imparare2_internacoes_prepared int
+            inner join imparare2_internacoes_v2_stacked_by_cd_atendimento int
                 on pac.registro = int.registro
+                    AND pac.id_enterprise = int.id_enterprise
             where date(dd) BETWEEN date(dthr_atendimento) 
-                and date(COALESCE(dthr_alta, (SELECT MAX(e.dthr_evolucao) FROM imparare2_evolucao_prepared as e WHERE e.patient_id = pac.registro)))
-        ) a
+                and date(COALESCE(dthr_alta, (SELECT MAX(e.dthr_evolucao) FROM imparare2_evolucao_anon_data_trunc as e WHERE e.registro = pac.registro and e.id_enterprise = pac.id_enterprise)))
+        ) a;
     """)
 
 if __name__ == "__main__":

@@ -16,53 +16,22 @@ def main():
 				min(proc.dthr_procedimento) as dthr_procedimento,
 				max(proc.dthr_fim_procedimento) as dthr_fim_procedimento,
 				string_agg(proc.nome_medico, ', ') as nome_medico,
-				-- 'MEDICO(A)' 
-                null as perfil,
-				-- 	'DOC_CLINICO'
-				null as tipo_procedimento,
-				-- 'I'
-				null as tipo_atendimento,
 				COALESCE(ROUND((EXTRACT(EPOCH FROM (MAX(proc.dthr_fim_procedimento) - min(proc.dthr_procedimento))) / 60.0)::numeric, 2), 0)::int as tempo_de_cirurgia,
 				coalesce(note.texto_cirurgia, 'Descrição não informada') as texto_cirurgia,
 				string_agg(proc.nome_procedimento, ', ') as nome_procedimento,
-				count(distinct proc.nome_procedimento)::smallint
+				count(distinct proc.nome_procedimento)::smallint,
+				proc.id_enterprise::smallint as id_enterprise
 			from imparare2_t1_cirurgias_3_3 as proc
 			left join imparare2_t1_cirurgias_4_4 as note
 			on proc.patient_id = note.patient_id
 				and proc.id_atendimento = note.id_atendimento
+				and proc.id_enterprise = note.id_enterprise
 				and (
 					proc.dthr_procedimento between note.dthr_criacao - interval '4 hours' and note.dthr_criacao + interval '4 hours'
 					or 
 					proc.dthr_fim_procedimento between note.dthr_criacao - interval '4 hours' and note.dthr_criacao + interval '4 hours'
 				)
-			group by proc.patient_id, proc.id_atendimento, coalesce(note.texto_cirurgia, 'Descrição não informada'), proc.dt_procedimento
-            UNION ALL
-            select
-				proc.patient_id::int as patient_id, 
-				proc.attendance_id::int as id_atendimento, 
-				min(proc.dthr_procedimento) as dthr_procedimento,
-				max(proc.dthr_fim_procedimento) as dthr_fim_procedimento,
-				string_agg(proc.nome_medico, ', ') as nome_medico,
-				-- 'MEDICO(A)' 
-                null as perfil,
-				-- 	'DOC_CLINICO'
-				null as tipo_procedimento,
-				-- 'A'
-				null as tipo_procedimento,
-				COALESCE(ROUND((EXTRACT(EPOCH FROM (MAX(proc.dthr_fim_procedimento) - min(proc.dthr_procedimento))) / 60.0)::numeric, 2), 0)::int as tempo_de_cirurgia,
-				coalesce(note.texto_cirurgia, 'Descrição não informada') as texto_cirurgia,
-				string_agg(proc.nome_procedimento, ', ') as nome_procedimento,
-				count(distinct proc.nome_procedimento)::smallint
-			from imparare2_t1_cirurgias_1_3 as proc
-			left join imparare2_t1_cirurgias_2_4 as note
-			on proc.patient_id = note.patient_id
-				and proc.attendance_id = note.attendance_id
-				and (
-					proc.dthr_procedimento between note.dthr_criacao - interval '4 hours' and note.dthr_criacao + interval '4 hours'
-					or 
-					proc.dthr_fim_procedimento between note.dthr_criacao - interval '4 hours' and note.dthr_criacao + interval '4 hours'
-				)
-			group by proc.patient_id, proc.attendance_id, coalesce(note.texto_cirurgia, 'Descrição não informada'), proc.dt_procedimento;
+			group by proc.patient_id, proc.id_atendimento, coalesce(note.texto_cirurgia, 'Descrição não informada'), proc.dt_procedimento, proc.id_enterprise;
     """)
 
 if __name__ == "__main__":

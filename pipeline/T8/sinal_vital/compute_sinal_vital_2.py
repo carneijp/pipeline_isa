@@ -103,7 +103,7 @@ def main():
         drop table if exists mid_isa_sinais_vitais;
         create unlogged table mid_isa_sinais_vitais as (
             SELECT 
-                s.id,
+                (registro::varchar||dthr_coleta::varchar||tipo_registro::varchar||valor_medida::varchar||perfil::varchar||uni_medida::varchar||id_enterprise::varchar) as id, 
                 s.registro as paciente_id, 
                 s.tipo_registro as tipo_sinal,
                 date(s.dthr_coleta) as dthr_coleta,
@@ -111,10 +111,11 @@ def main():
                 s.uni_medida as unimedida,
                 null as perfil,
                 null as tipo_atendimento,
-                s.ordem,
-                s.criterio,
+                null as s.ordem,
+                null as s.criterio,
                 c.company_code, 
-                c.hospital_id as company_id
+                c.hospital_id as company_id,
+                s.id_enterprise
             FROM imparare2_isa_sinal_vital s
             LEFT JOIN imparare_patient_company_treatment c 
                 ON s.registro = c.record_id
