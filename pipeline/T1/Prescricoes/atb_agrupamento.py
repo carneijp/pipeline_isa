@@ -16,10 +16,12 @@ def worker(c = pd.DataFrame):
         "ACICLOVIR FA 250MG PO LIOFILIZADO INJ - UNI VIR" : "INTERMEDIARIO",
         "ACICLOVIR FA 250MG PO LIOF INJ - UNI VIR" : "INTERMEDIARIO",
         "ACICLOVIR 250MG IV INJ." : "INTERMEDIARIO",
+        "ACICLOVIR 200MG CP." : "INTERMEDIARIO",
         #AMICACINA
         "AMICACINA - 100MG (50MG/ML) AMP 2ML INJ - AMICACINA" : "HOSPITALAR",
         "AMICACINA 500MG (250MG/ML) AMP 2ML INJ - AMICACINA" : "HOSPITALAR",
         "AMICACINA 500MG INJ. AMPOLA C/ 2ML" : "HOSPITALAR",
+        "AMICACINA 100MG INJ. AMPOLA C/ 2ML" : "HOSPITALAR",
         #AMOX+CLAV
         "AMOXICIL+CLAVULAN (400MG+57MG/5ML) FR 70ML OR - CLAVULIN BD" : "OUTROS",
         "AMOXICILINA+CLAVULANAT (250MG+62,5MG/5ML) FR 75ML - CLAVULIN" : "OUTROS",
@@ -33,6 +35,7 @@ def worker(c = pd.DataFrame):
         "AMOXICILINA (250MG/5ML) FR 150ML PO SUS OR - AMOXIL" : "OUTROS",
         "AMOXICILINA 500MG CAPS - AMOXIL" : "OUTROS",
         "AMOXICILINA 500MG CAPS." : "OUTROS",
+        "AMOXICILINA 400MG/5ML SUSP. C/ 100ML" : "OUTROS",
         #AMOXICILINA_SULBACTAM            
         "AMOXICILIN+SULBACT (200MG+50MG/ML) PO SUS FR 30ML - TRIFAMOX" : "OUTROS",
         "AMOXI+SULBAC IBL BD 250MG/ML FR 30ML SUP - TRIFAMOX" : "OUTROS",
@@ -43,6 +46,7 @@ def worker(c = pd.DataFrame):
         #AMPICILINA_SULBACTAM
         "SULBACTAM 1,0G + AMPICILINA 2,0G PO INJ FA 3G" : "OUTROS",
         "SULBACTAM+AMPICILINA (0,5G+1,0G) FA 1,5G PO SOL INJ - UNASYN" : "OUTROS",
+        "AMPICILINA 2,0G + SULBACTAM 1,0G INJETÁVEL" : "OUTROS",
         #AZITROMICINA
         "AZITROMICINA 500MG COMP - ZITROMAX" : "OUTROS",
         "AZITROMICINA 600MG (200MG/5ML) FR 15ML PO SUSP ORAL - ASTRO" : "OUTROS",
@@ -56,6 +60,7 @@ def worker(c = pd.DataFrame):
         "BENZILPENICILINA (300.000U/ML) FA 4ML SUSP INJ - BENZETACIL" : "COMUNITARIO",
         "BENZILPENICILINA FA 400.000 UI PO INJ - PENKARON" : "COMUNITARIO",
         "BENZILPENICILINA POTÁSSICA 5.000.000UI INJ. (A)" : "COMUNITARIO",
+        "BENZILPENICILINA 1.200.000UI INJ. - 4ML" : "COMUNITARIO",
         #PENICILINAGPOTASSICA
         "PENICILINA  5.000.000UI INJ - ARICILINA" : "COMUNITARIO",
         "PENICILINA FA 5.000.000 UI PO INJ - ARICILINA" : "COMUNITARIO",
@@ -63,7 +68,9 @@ def worker(c = pd.DataFrame):
         #CEFADROXILA
         "CEFADROXILA (250MG/5ML) FR P/100ML PO SUSP ORAL" : "OUTROS",
         "CEFADROXILA 500MG CAPS - CEFAMOX" : "OUTROS",
+        "CEFADROXILA 500MG CP." : "OUTROS",
         "CEFADROXILA (50MG/ML) FR 100ML PO SUSP ORAL" : "OUTROS",
+        "CEFADROXILA SUSPENSÃO 250MG/5ML" : "OUTROS",
         #CEFALEXINA
         "CEFALEXINA 250MG/5ML (50MG/ML) FR 100ML SUSP ORAL - KEFLEX" : "COMUNITARIO",
         "CEFALEXINA 500MG COMP - KEFLEX " : "COMUNITARIO",
@@ -72,15 +79,18 @@ def worker(c = pd.DataFrame):
         #CEFALOTINA
         "CEFALOTINA FA 1G PO SOL INJ - KEFLIN" : "OUTROS",
         "CEFALOTINA 1G" : "OUTROS",
+        "CEFALOTINA 1G INJ. (A)" : "OUTROS",
         "KEFLIN FA 1G - CEFALOTINA" : "OUTROS",
         #CEFAZOLINA
         "CEFAZOLINA FA 1G (1000MG) PO SOL INJ - KEFAZOL" : "PROFILATICO",
         "CEFAZOLINA SODICA 1G FR 1000MG (R) - KEFAZOL" : "PROFILATICO",
+        "CEFAZOLINA 1G INJ.  (A)" : "PROFILATICO",
         #CEFOTAXIMA
         "CEFOTAXIMA SODICA 1G INJ - CLAFORDIL" : "COMUNITARIO",
         #CEFTAZIDIMA
         "CEFTAZIDIMA 1G FA PO INJ - CEFTAZIDON" : "HOSPITALAR",
         "CEFTAZIDIMA FA 1G (1000MG) PO INJ - CEFTAZIDON" : "HOSPITALAR",
+        "CEFTAZIDIMA 1G INJ." : "HOSPITALAR",
         #CEFTAZIDIMA_AVIBACTAM
         "CEFTAZIDIMA 2000MG+AVIBACTAM 500MG FA 2.5G PO - TORGENA" : "MMR",
         "CEFTAZIDIMA + AVIBACTAM 2,5G" : "MMR",
@@ -96,6 +106,7 @@ def worker(c = pd.DataFrame):
         #CEFUROXIMA
         "CEFUROXIMA FA 750MG PO INJ - ZINACEF" : "OUTROS",
         "CEFUROXIMA SÓDICA 750MG INJ." : "OUTROS",
+        "CEFUROXIMA  500MG CP (A)" : "OUTROS",
         #CETOCONAZOL
         "CETOCONAZOL (20MG/G) TB 30G CREME - NIZORAL" : "TOPICO",
         #CIPROFLOXACINO
@@ -112,6 +123,7 @@ def worker(c = pd.DataFrame):
         "CLARITROMICINA  500MG COMP - KLARICID" : "OUTROS",
         "CLARITROMICINA 500MG FA PO LIOF INJ - CLARILIB" : "OUTROS",
         "CLARITROMICINA 500MG IV INJ." : "OUTROS",
+        "CLARITROMICINA 250MG/5ML SUSPENSÃO 60ML" : "OUTROS",
         #CLINDAMICINA
         "CLINDAMICINA 300MG CAPS DURA - DALACIN" : "OUTROS",
         "CLINDAMICINA 600MG (150MG/ML) AMP 4ML INJ - HYCLIN" : "OUTROS",
@@ -129,11 +141,13 @@ def worker(c = pd.DataFrame):
         "FLUCONAZOL 150MG CAPS DURA - ZOLTEC" : "ANTIFUNGICO",
         "FLUCONAZOL 200MG (2MG/ML) BOLSA 100ML SOL INF - ZOLTEC" : "ANTIFUNGICO",
         "FLUCONAZOL 2MG/ML INJ. C/ 100ML" : "ANTIFUNGICO",
+        "FLUCONAZOL 150MG CÁPS." : "ANTIFUNGICO",
         #GANCICLOVIR
         "GANCICLOVIR (1MG/ML) BOLS 500ML SOL IN PRONTO P/USO- CYMEVIR" : "OUTROS",
         "GANCICLOVIR 500MG PO FA LIOFILIZADO INJ - GANCICLOTRAT" : "OUTROS",
         "GANCICLOVIR 500MG SOL INJ BOLSA PRONTO P/ USO - CYMEVIR" : "OUTROS",
         "GANCICLOVIR FA 500MG PO LIOF INJ - GANCICLOTRAT" : "OUTROS",
+        "GANCICLOVIR 500MG INJ. 10ML" : "OUTROS",
         #GENTAMICINA
         "GENTAMICINA 20MG/1ML INJ - GENTAMICIN" : "INTERMEDIARIO",
         "GENTAMICINA 40MG (40MG/ML) AMP 1ML INJ - GARAMICINA" : "INTERMEDIARIO",
@@ -150,6 +164,8 @@ def worker(c = pd.DataFrame):
         "LEVOFLOXACINO 750MG COMP REV - TAMIRAM" : "OUTROS",
         "LEVOFLOXACINO HEMI-HIDRATADO 750MG (5MG/ML) BOLSA 150ML" : "OUTROS",
         "LEVOFLOXACINO 500MG INJ. - 100ML" : "OUTROS",
+        "LEVOFLOXACINO 500 MG CP. (A)" : "OUTROS",
+        "LEVOFLOXACINO 250 MG CP. (A)" : "OUTROS",
         #LINEZOLIDA
         "LINEZOLIDA 600MG (2MG/ML) BOLSA 300ML SOL INF - ZYVOX" : "MMR",
         "LINEZOLIDA 600MG IV INJ. 300ML" : "MMR",
@@ -164,6 +180,8 @@ def worker(c = pd.DataFrame):
         "METRONIDAZOL 500MG (5MG/ML) FR 100ML SOL INJ IV - FLAGYL" : "INTERMEDIARIO",
         "METRONIDAZOL 500 MG INJ. - 100 ML (A)" : "INTERMEDIARIO",
         "METRONIDAZOL 250MG CP. (A)" : "INTERMEDIARIO",
+        "METRONIDAZOL 40MG/ML SUSP. C/ 100ML" : "INTERMEDIARIO",
+        "METRONIDAZOL 400MG CP. (A)" : "INTERMEDIARIO",
         #MICAFUNGINA
         "MICAFUNGINA SODICA FA 100MG PO LIOF INF IV - MYCAMINE" : "ANTIFUNGICO",
         "MICAFUNGINA SODICA FA 50MG PO LIOF INF IV - MYCAMINE" : "ANTIFUNGICO",
@@ -180,6 +198,7 @@ def worker(c = pd.DataFrame):
         #CLORANFENICOL
         "KOLLAGENASE + CLORANFENICOL TB 30G (CLORANFENICOL) " : "OUTROS",
         "RETINOL+AMINOAC+METIONINA+CLORANFE TB3,5G POM OFT - EPITEZAN" : "OUTROS",
+        "CLORANFENICOL 1G INJ. (A)" : "OUTROS",
         #MUPIROCINA
         "MUPIROCINA 2% (20MG/G) TB 15G POMADA - BACTROBAN" : "PROFILATICO",
         #NEOMICINA
@@ -224,6 +243,9 @@ def worker(c = pd.DataFrame):
         "SULFAMETOXAZOL+TRIMETOPRIM (200MG+40MG/5ML) FR 100ML BACTRIM" : "OUTROS",
         "SULFAMETOXAZ+TRIMETOPRIMA (400+80MG/5ML) INJ - BAC SULFITRIN" : "OUTROS",
         "SULFAMETOXAZOL +TRIMETOPRIMA (400MG+80MG) INJ.- 5ML (A)" : "OUTROS",
+        "SULFAMETOXAZOL+TRIMETOPRIMA (200MG+ 40MG/5ML) SUSP. ORAL PED. 100ML" : "OUTROS",
+        "SULFAMETOXAZOL TRIMETOPRIMA F (800+160MG) CP. (A)" : "OUTROS",
+        "SULFAMETOXAZOL + TRIMETROPIMA (400MG + 80MG) CP. (A)" : "OUTROS",
         #TEICOPLANINA
         "TEICOPLANINA FA 200MG PO LIOF INJ - TARGOCID" : "MMR",
         "TEICOPLANINA FA 400MG PO LIOF INJ - TARGOCID" : "MMR",
@@ -238,10 +260,11 @@ def worker(c = pd.DataFrame):
         "VORICONAZOL IV FR 200MG PO SOL INF - VFEND IV" : "ANTIFUNGICO",
     }
     
-    c["atb"] = c["atb"].apply(lambda x: translate_atb[str(x).strip().upper()] if str(x).upper().strip() in translate_atb.keys() else 'OUTROS')
+    # c["atb"] = c["atb"].apply(lambda x: translate_atb[str(x).strip().upper()] if str(x).upper().strip() in translate_atb.keys() else 'OUTROS')
 
-    # c["atb"] = c["atb"].apply(lambda x: "MATCHED" if str(x).upper().strip() in translate_atb.keys() else str(x).upper().strip())
-    # print(c["atb"].value_counts())
+    c["atb"] = c["atb"].apply(lambda x: "MATCHED" if str(x).upper().strip() in translate_atb.keys() else str(x).upper().strip())
+    if len(c["atb"].unique()) > 1:
+        print(c["atb"].value_counts())
     
     desejos = ['COMUNITARIO', 'TOPICO', 'INTERMEDIARIO',
         'HOSPITALAR', 'MMR', 'ANTIFUNGICO', 'OUTROS', 'PROFILATICO'
@@ -383,7 +406,8 @@ def main():
             	on p.id_hospital = h.id_hospital 
 --             where record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()}
         ) p
-        GROUP BY registro, id_enterprise, prescription_date, atb;
+        GROUP BY registro, id_enterprise, prescription_date, atb
+        order by atb;
     """
 
     df_iterator = dataRequest.get_data(queryText= append_query, chunck = 2000)
