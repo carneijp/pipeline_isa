@@ -218,6 +218,8 @@ def main():
 
     if replace:
         create_query = """
+            CREATE INDEX IF NOT EXISTS imparare2_sinalvitais_pivot_idx_1 ON imparare2_sinalvitais_pivot(registro, dia);
+            
             DROP TABLE IF EXISTS imparare2_dataset_enfermagem_categ;
             CREATE UNLOGGED TABLE imparare2_dataset_enfermagem_categ (
                 registro INTEGER,
@@ -234,6 +236,8 @@ def main():
                 "OXIMETRIA_max" FLOAT,
                 "PAD_min" FLOAT,
                 "PAD_max" FLOAT,
+                "PAM_min" FLOAT,
+                "PAM_max" FLOAT,
                 "PAS_min" FLOAT,
                 "PAS_max" FLOAT,
                 "TEMP_min" FLOAT,
@@ -261,15 +265,40 @@ def main():
             * 
         from (
             select 
-                de.*,
+                registro AS registro,
+                dia::date AS dia,
+                MIN("FC") AS "FC_min",
+                MAX("FC") AS "FC_max",
+                MIN("FR") AS "FR_min",
+                MAX("FR") AS "FR_max",
+                MIN("HGT") AS "HGT_min",
+                MAX("HGT") AS "HGT_max",
+                MIN("OXIMETRIA") AS "OXIMETRIA_min",
+                MAX("OXIMETRIA") AS "OXIMETRIA_max",
+                MIN("PAD") AS "PAD_min",
+                MAX("PAD") AS "PAD_max",
+                MIN("PAM") AS "PAM_min",
+                MAX("PAM") AS "PAM_max",
+                MIN("PAS") AS "PAS_min",
+                MAX("PAS") AS "PAS_max",
+                MIN("TEMP") AS "TEMP_min",
+                MAX("TEMP") AS "TEMP_max",
+                MIN("O2") AS "O2_min",
+                MAX("O2") AS "O2_max",
+                MIN("FIO2") AS "FIO2_min",
+                MAX("FIO2") AS "FIO2_max",
+                MIN("PEEP") AS "PEEP_min",
+                MAX("PEEP") AS "PEEP_max",
+                COUNT(*) AS "SINAIS_VITAIS_count_total",
                 pr.birthdate,
                 (de.dia - pr.birthdate) as idade_dias,
                 ((de.dia - pr.birthdate) / 30.44)::smallint as idade_meses
-            from imparare2_dataset_enfermagem de
+            from imparare2_sinalvitais_pivot de
             INNER join (
                 select distinct record_id, birthdate from patients_records
             ) pr
                 on de.registro = pr.record_id
+            GROUP BY registro, pr.birthdate, id_enterprise, dia
         ) a
         where idade_dias >= 0
     """

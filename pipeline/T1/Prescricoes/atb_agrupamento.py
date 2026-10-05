@@ -445,8 +445,7 @@ def main():
             	on p.id_hospital = h.id_hospital 
 --             where record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()}
         ) p
-        GROUP BY registro, id_enterprise, prescription_date, atb
-        order by via;
+        GROUP BY registro, id_enterprise, prescription_date, atb;
     """
 
     df_iterator = dataRequest.get_data(queryText= append_query, chunck = 2000)
