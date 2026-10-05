@@ -13,6 +13,7 @@ def main():
         "created_at": ("blood_culture_reports.created_at", "date"),
         "record_id": ("blood_culture_reports.record_id", "integer"),
         "attendance_type": ("blood_culture_reports.attendance_type", "text"), 
+        "exam_lab_name": ("blood_culture_reports.exam_lab_name", "text"),
         "laboratory_request_id": ("blood_culture_reports.laboratory_request_id", "integer"), 
         "blood_culture_request_date": ("blood_culture_reports.blood_culture_request_date", "timestamp"), 
         "blood_culture_collection_date": ("blood_culture_reports.blood_culture_collection_date", "timestamp"),
