@@ -13,15 +13,10 @@ def worker(c = pd.DataFrame):
 
     c = maestro.trim(df= c, column= "laudos_dia")
 
-    tuplas = [("rx de torax", "rx de torax ")]
-    c = maestro.replace_values_list(df= c, column= "laudos_dia", arrayDeTuplas= tuplas)#, regex=True) 
-
     tuplas = [
         (r"\n", r". "), (r"\|", r". "), (r"\s\.\s", r". "), (r"\s\s", r". "), (r"\.+", r"."), (r" +", r" ")
     ]
     c = maestro.replace_values_list(df= c, column= "laudos_dia", arrayDeTuplas= tuplas, regex=True) 
-
-    c = maestro.to_int(df= c, column= "REGISTRO")
 
     dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "imparare2_raiox_computed", if_exists= "append")
 
@@ -32,22 +27,27 @@ def main():
         create_query = """
             DROP TABLE IF EXISTS "imparare2_raiox_computed";
             CREATE UNLOGGED TABLE "imparare2_raiox_computed" (
-                registro INTEGER,
+                record_id INTEGER,
                 data DATE,
                 laudos_dia TEXT,
-                count_laudos_dia INTEGER
+                count_laudos_dia SMALLINT,
+                id_enterprise SMALLINT
             );                
         """
         dataRequest.execute(create_query)
     
     append_query = """
         SELECT 
-            RX.registro, 
-            date(RX.data_entrega) AS data,
-            string_agg(RX."ds_laudo",' | ' order by RX."data_entrega") AS laudos_dia,
-            count(*) AS count_laudos_dia
-        FROM "imparare2_laudos_copy_raiox_prepared" AS RX
-        GROUP BY RX.registro , date(RX.data_entrega )
+            RX.record_id, 
+            date(RX.xray_request_date) AS data,
+            string_agg(RX.xray_content,' | ' order by RX.xray_request_date) AS laudos_dia,
+            count(*) AS count_laudos_dia,
+            h.id_enterprise AS id_enterprise
+        FROM xrays_reports AS RX
+        JOIN hospitals AS h
+            ON RX.id_hospital = h.id_hospital
+        WHERE RX.xray_content IS NOT NULL
+        GROUP BY RX.record_id , date(RX.xray_request_date), h.id_enterprise 
     """
     
     df_iterator = dataRequest.get_data(queryText= append_query, chunck= 2000)

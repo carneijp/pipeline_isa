@@ -149,22 +149,22 @@ def main():
 
     append_query = """
         SELECT 
-            s.id, 
-            s.registro as patient_id,
-            s.codigo_laudo, 
-            s.descricao_laudo, 
-            s.dthr_pedido, 
-            s.dthr_entrega_laudo, 
-            LOWER(s.laudo_texto::text) as laudo_texto, 
-            s.tipo_atendimento, 
-            s.ordem, 
-            s.criterio, 
+            (xr.xray_request_date::varchar||xr.xray_delivery_date::varchar||xr.record_id::varchar||xr.xray_exam_description::varchar||xr.attendance_type::varchar) as id, 
+            xr.record_id as patient_id,
+            null as codigo_laudo, 
+            xr.xray_exam_description as descricao_laudo, 
+            xr.xray_request_date as dthr_pedido, 
+            xr.xray_delivery_date as dthr_entrega_laudo, 
+            LOWER(xr.xray_content::text) as laudo_texto, 
+            xr.attendance_type as tipo_atendimento, 
+            null as ordem, 
+            null as criterio, 
             c.company_code, 
             c.hospital_id as company_id
-        FROM imparare2_isa_laudo s
+        FROM xrays_reports xr
         LEFT JOIN imparare_patient_company_treatment c 
-            ON s.registro = c.record_id
-            AND s.dthr_pedido between c.attendance_date AND c.discharge_date
+            ON xr.record_id = c.record_id
+            AND xr.xray_request_date between c.attendance_date AND c.discharge_date
             AND c.company_code IS NOT null;
     """
     
