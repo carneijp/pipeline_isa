@@ -1,3 +1,5 @@
+import unicodedata
+
 from ImpararePackage import dataRequest, maestro
 from multiprocessing import Pool, cpu_count
 import pandas as pd
@@ -26,37 +28,56 @@ def tratar_resultado_exame(valor):
     except ValueError:
         return None #força a só tratar os tipos de resultado elencados na função, vai dar nulo para qualquer outro resultado
 
+def normalizar_texto(texto) -> str:
+    if texto is None:
+        return ""
+    texto_sem_acento = unicodedata.normalize('NFD', str(texto)).encode('ascii', 'ignore').decode("utf-8")
+    return texto_sem_acento.strip().upper()
+
 def transpose(row):
+
     tipo = row['tipo']
     nome = row['exam_lab_name']
     valor = row['valor']
-    if tipo == 'GLOBAL DE LEUCOCITOS':
+
+    if 'LEUCOC' in tipo and 'HEMOGRAMA' in nome:
         row['leucocitos'] = valor
     elif tipo == 'RDW':
         row['rdw'] = valor
-    elif tipo == 'SEGMETADO NEUTROFILO':
+    elif 'SEGMENTADO' in tipo and 'HEMOGRAMA' in nome:
         row['neutrofilo'] = valor
-    elif tipo == 'RESULTADO' and row['exam_lab_name'] == 'PCR (PROTEINA C REATIVA)':
+    elif ('RESULTADO' in tipo or 'PCR' in tipo) and 'PROTEINA C REATIVA' in nome:
         row['pcr'] = valor
     elif 'CLOSTRIDIUM' in nome:
         row['clostridium'] = valor
     elif 'MRSA' in nome:
         row['mrsa'] = valor
-    elif 'VI' in nome:
+    elif 'MYCO' in nome:
+        row['outras_bacterias'] = valor
+    elif not 'ROTAV' in nome and not 'ZIKA' in nome and not 'ADENO' in nome and not 'EPSTEIN' in nome and any(term in nome for term in ['VI','COVID', 'RESPI']):
         row['virus_resp'] = valor
+    elif any(term in nome for term in ['ROTAV', 'ZIKA', 'EPSTEIN', 'CITOMEG', 'DENGUE']):
+        row['outros_virus'] = valor
+    elif not 'EPSTEIN' in nome and any(term in nome for term in ['BAAR']):
+        row['baar'] = valor
+    elif any(term in nome for term in ['ASPERG', 'CRYPT']):
+        row['fungos'] = valor
     elif 'PROT' in tipo and'LIQUOR' in nome:
         row['proteina_liquor'] = valor
     elif 'GLICOSE' in tipo and'LIQUOR' in nome:
         row['glicose_liquor'] = valor
     else:
-        print(f"deu ruim: {nome} - {tipo} - {valor}")
-    
+        #print(f"deu ruim: {nome} - {tipo} - {valor}")
+        print (normalizar_texto(tipo))
+        
     return row
 
 def worker(c:pd.DataFrame):
     c['valor'] = c['valor'].apply(tratar_resultado_exame).astype(float)
-    c[['leucocitos', 'rdw', 'neutrofilo', 'clostridium', 'mrsa', 'virus_resp', 'proteina_liquor', 'glicose_liquor', 'pcr']] = None
+    c[['leucocitos', 'rdw', 'neutrofilo', 'clostridium', 'mrsa', 'virus_resp', 'outros_virus', 'proteina_liquor', 'glicose_liquor', 'pcr', 'fungos', 'baar', 'outras_bacterias']] = None
 
+    c ['tipo']= c.apply(lambda x: normalizar_texto(x['tipo']), axis=1)
+    c ['exam_lab_name']= c.apply(lambda x: normalizar_texto(x['exam_lab_name']), axis=1)
     c = c.apply(transpose, axis= 1)
     
     c[['leucocitos', 'rdw', 'neutrofilo', 'glicose_liquor', 'proteina_liquor', 'pcr']] = c[['leucocitos', 'rdw', 'neutrofilo', 'glicose_liquor', 'proteina_liquor', 'pcr']].astype(float)
@@ -79,7 +100,11 @@ def main():
                 neutrofilo FLOAT,
                 clostridium FLOAT,
                 mrsa FLOAT,
+                outras_bacterias FLOAT,
+                fungos FLOAT,
+                baar FLOAT,
                 virus_resp FLOAT,
+                outros_virus FLOAT,
                 pcr FLOAT,
                 proteina_liquor FLOAT,
                 glicose_liquor FLOAT
@@ -97,16 +122,24 @@ def main():
         from exams_reports er
         where (record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()})
             AND (
-                (exam_lab_name = 'HEMOGRAMA' and exam_result_field_name in ('GLOBAL DE LEUCOCITOS', 'RDW', 'SEGMETADO NEUTROFILO')) 
-                or (er.exam_lab_name = 'PCR (PROTEINA C REATIVA)' and er.exam_result_field_name = 'RESULTADO')
-                or er.exam_result_field_name ilike'%protfli%'
-                or er.exam_result_field_name ilike'%glicose liquor%'
-                or (er.exam_lab_name = 'ROTINA DE LIQUIDO CEFALORRAQUIDIANO (LIQUOR)' and (er.exam_result_field_name = 'PROTEINAS' or er.exam_result_field_name = 'GLICOSE'))
+                (LOWER(exam_lab_name) = 'hemograma' and exam_result_field_name in ('GLOBAL DE LEUCOCITOS', 'RDW', 'SEGMETADO NEUTROFILO', 'Contagem de leucócitos', 'Leucócitos', 'Segmentados')) 
+                or (er.exam_lab_name in ('PCR (PROTEINA C REATIVA)', 'PCR - Proteína C Reativa') and er.exam_result_field_name in ('RESULTADO', 'PCR - Proteína C Reativa'))
+                or er.exam_result_field_name ilike'%prot%li%'
+                or er.exam_result_field_name ilike'%glic%quor%'
+                or (er.exam_lab_name in ('ROTINA DE LIQUIDO CEFALORRAQUIDIANO (LIQUOR)', 'Rotina de Líquor') and (er.exam_result_field_name ilike '%PROTE%' or UPPER(er.exam_result_field_name) = 'GLICOSE'))
                 or er.exam_lab_name ilike '%clostr%'
                 or er.exam_lab_name ilike '%mrsa%'
+                or er.exam_lab_name ilike '%crypt%'
+                or er.exam_lab_name ilike '%asperg%'
+                or er.exam_lab_name ilike '%baar%'
+                or er.exam_lab_name ilike '%citomeg%'
+                or er.exam_lab_name ilike '%myco%'
+                or er.exam_lab_name ilike '%rotav%'
+                or er.exam_lab_name ilike '%dengue%'
+                or er.exam_lab_name ilike '%zika%'
                 or (er.exam_lab_name ilike '%sinci%'and er.exam_result_field_name = 'RESULTADO')
-                or (er.exam_lab_name ilike '%covid%' and er.exam_result_field_name ilike '%RESULTADO%')
-                or er.exam_lab_name = 'PAINEL INF RESPIRATÓRIAS VIRAIS, MYCOPLASMA E BORDETELLA'
+                or (er.exam_lab_name ilike '%covid%' and er.exam_result_field_name ~* '(resultado|influenza|sars)')
+                or er.exam_lab_name in ('PAINEL INF RESPIRATÓRIAS VIRAIS, MYCOPLASMA E BORDETELLA', 'Painel Respiratório Plus - Detecção Por PCR')
             );
     """
 
