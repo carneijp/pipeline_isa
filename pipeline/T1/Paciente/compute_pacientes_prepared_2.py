@@ -18,9 +18,11 @@ def main():
             DROP TABLE IF EXISTS "imparare2_pacientes_prepared";
             CREATE UNLOGGED TABLE "imparare2_pacientes_prepared" (
                 registro INTEGER,
+                nome_paciente TEXT,
                 sexo TEXT,
                 dt_nascimento_parsed TIMESTAMP,
-                count INTEGER
+                count INTEGER,
+                id_enterprise SMALLINT
             );
         """
         dataRequest.execute(create_query)
@@ -28,18 +30,26 @@ def main():
     append_query = f"""
         SELECT 
             record_id AS registro,
+            MAX(patient_name) AS nome_paciente,
             MAX("SEXO_dku_lst") AS sexo,
             TO_CHAR(MAX(birthdate_dku_lst),'DD/MM/YYYY') AS dt_nascimento,
-            COUNT(*) AS count
+            COUNT(*) AS count,
+            id_enterprise
         FROM (
             SELECT 
-                record_id, sex, TO_CHAR(birthdate,'DD/MM/YYYY') AS birthdate, 
-                LAST_VALUE(sex) OVER (PARTITION BY record_id ORDER BY record_id ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "SEXO_dku_lst",
-                LAST_VALUE(birthdate) OVER (PARTITION BY record_id ORDER BY record_id ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS birthdate_dku_lst
-            FROM patients_records
-            where record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()}
-        ) "dku__subquery"
-        GROUP BY registro
+                record_id, 
+                sex, 
+                TO_CHAR(birthdate,'DD/MM/YYYY') AS birthdate, 
+                LAST_VALUE(patient_name) OVER (PARTITION BY record_id, h.id_enterprise ORDER BY record_id, h.id_enterprise ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS patient_name,
+                LAST_VALUE(sex) OVER (PARTITION BY record_id, h.id_enterprise ORDER BY record_id, h.id_enterprise ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "SEXO_dku_lst",
+                LAST_VALUE(birthdate) OVER (PARTITION BY record_id, h.id_enterprise ORDER BY record_id, h.id_enterprise  ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS birthdate_dku_lst,
+                h.id_enterprise
+            FROM patients_records pr
+            JOIN hospitals h
+                ON pr.id_hospital = h.id_hospital
+            -- where record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()}
+        ) dku__subquery
+        GROUP BY registro, id_enterprise;
     """
     df_iterator = dataRequest.get_data(queryText= append_query, chunck=2000)
     with Pool(processes= cpu_count()) as pool:

@@ -25,8 +25,8 @@ def main():
 
     if replace:
         create_query = """
-            DROP TABLE IF EXISTS "imparare2_raiox_computed";
-            CREATE UNLOGGED TABLE "imparare2_raiox_computed" (
+            DROP TABLE IF EXISTS imparare2_raiox_computed;
+            CREATE UNLOGGED TABLE imparare2_raiox_computed (
                 record_id INTEGER,
                 data DATE,
                 laudos_dia TEXT,
