@@ -289,7 +289,6 @@ def main():
             DROP TABLE IF EXISTS imparare2_prescricoesantibiotico_prepared_teste;
             CREATE UNLOGGED TABLE IF NOT EXISTS imparare2_prescricoesantibiotico_prepared_teste (
                 registro INTEGER,
-                cd_pre_med INTEGER,
                 dthr_prescricao TIMESTAMP,
                 atb TEXT NULL,
                 dose TEXT NULL,
@@ -306,11 +305,8 @@ def main():
                 "atb_ANTIFUNGICO" INTEGER NULL,
                 "atb_OUTROS" INTEGER NULL,
                 "atb_PROFILATICO" INTEGER NULL,
-                "via_PARENTERAL" INTEGER NULL,
-                "via_ENTERAL" INTEGER NULL,
-                "via_TOPICO" INTEGER NULL,
-                "via_OUTRO" INTEGER NULL,
-                attendance_type TEXT NULL
+                attendance_type TEXT NULL,
+                id_enterprise SMALLINT
             );
             """
         dataRequest.execute(queryText= create_query)
@@ -318,28 +314,30 @@ def main():
     append_query = f"""
         SELECT
             registro AS registro,
-            MAX("CD_PRE_MED") AS cd_pre_med,
             prescription_date AS dthr_prescricao,
             atb AS atb,
             MAX("DOSE")::text AS dose,
             MAX("UNID") AS unidade,
             MAX("FREQUENCIA") AS frequencia,
             MAX("VIA") AS via,
-            'I' AS attendance_type
+            'I' AS attendance_type, 
+            id_enterprise
         FROM(
             SELECT
                 record_id AS registro,
-                FIRST_VALUE(pre_med_id) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "CD_PRE_MED",
                 prescription_date AS prescription_date,
                 antibiotic AS atb,
                 FIRST_VALUE(dosage) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "DOSE",
                 FIRST_VALUE(antibiotic_unity) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "UNID",
                 FIRST_VALUE(frequency) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "FREQUENCIA",
-                FIRST_VALUE(via) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "VIA"            
-            FROM prescriptions
-            where record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()}
+                FIRST_VALUE(via) OVER (PARTITION BY record_id, prescription_date, antibiotic ORDER BY prescription_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "VIA",
+                h.id_enterprise
+            FROM prescriptions p
+            inner join hospitals h
+            	on p.id_hospital = h.id_hospital 
+--             where record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()}
         ) p
-        GROUP BY registro, prescription_date, atb;
+        GROUP BY registro, id_enterprise, prescription_date, atb;
     """
 
     df_iterator = dataRequest.get_data(queryText= append_query, chunck = 2000)
