@@ -269,7 +269,6 @@ def _matches_por_criterio(new_sentence: pd.Series, pattern_pos_re, pos_sanitized
 
 
 def main(c: pd.DataFrame) -> None:
-    # Preparo de texto (igual ao antigo compute_evol_sent_pos_2_unique.py)
     c["new_sentence"] = c["new_sentence"].str.encode("ascii", "ignore")
     c["new_sentence"] = c["new_sentence"].str.decode("utf-8")
     c["new_sentence"] = c["new_sentence"].apply(
@@ -295,9 +294,6 @@ def main(c: pd.DataFrame) -> None:
         pd.Series(termos_achados_por_linha, index=c.index).astype(str).str.replace("[]", "", regex=False)
     )
 
-    c["dthr_evolucao_hr"] = c["dthr_evolucao"]
-    c["dthr_evolucao"] = pd.to_datetime(c["dthr_evolucao"], utc=False)
-
     try:
         c["texto_evolucao"] = c["texto_evolucao"].apply(lambda x: urllib.parse.quote(str(x)))
         c["texto_evolucao"] = c["texto_evolucao"].apply(lambda x: urllib.parse.unquote(str(x)))
@@ -309,12 +305,7 @@ def main(c: pd.DataFrame) -> None:
     except Exception:
         print("bug2")
 
-    c["texto_evolucao"] = c["texto_evolucao"].replace("/&lt;/g", "<")
-    c["texto_evolucao"] = c["texto_evolucao"].replace("/&gt;/g", ">")
-    c["texto_evolucao"] = c["texto_evolucao"].replace('/&quot;/g', '"')
-    c["texto_evolucao"] = c["texto_evolucao"].replace("/&#39;/g", "'")
-    c["texto_evolucao"] = c["texto_evolucao"].replace("/&amp;/g", "&")
-    c["texto_evolucao"] = c["texto_evolucao"].astype("str").str.strip()
+    c["texto_evolucao"] = c["texto_evolucao"].replace("/&lt;/g", "<").replace("/&gt;/g", ">").replace('/&quot;/g', '"').replace("/&#39;/g", "'").replace("/&amp;/g", "&").astype("str").str.strip()
 
     hour_part = (
         c["dthr_evolucao_hr"]
@@ -339,26 +330,8 @@ def main(c: pd.DataFrame) -> None:
         "texto_evolucao",
         "termos_achados",
         "perfil_termos",
+        "id_enterprise"
     ]]
-
-    c = maestro.split_columns_count_vectorized(
-        df=c,
-        arrayDeReferencia=["dthr_evolucao"],
-        arraySeparadores=[" "],
-        maxColumnsToSplit=2,
-    )
-
-    # Zera hora/min/seg mantendo só a data
-    c["dthr_evolucao"] = c["dthr_evolucao"].dt.normalize()
-
-    c = maestro.concatenate_columns(
-        df=c,
-        arrayDestinos=["dthr_evolucao"],
-        arrayDeReferencias=[["dthr_evolucao_0", "dthr_evolucao_1"]],
-        arraySeparadores=[" "],
-    )
-
-    c = maestro.remove_columns(df=c, arrayColumns=["dthr_evolucao_0", "dthr_evolucao_1"])
 
     c = maestro.replace_values_list(
         df=c,

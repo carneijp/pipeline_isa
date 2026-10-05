@@ -6,7 +6,7 @@ def main():
     dataRequest.execute("""
         SET synchronous_commit = off;
         
-        CREATE INDEX IF NOT EXISTS imparare2_evolucao_anon_data_trunc_idx_1  ON imparare2_evolucao_anon_data_trunc(registro, data_dia);
+        CREATE INDEX IF NOT EXISTS imparare2_evolucao_anon_data_trunc_idx_1  ON imparare2_evolucao_anon_data_trunc(registro, id_enterprise, data_dia);
 
         DROP TABLE IF EXISTS imparare2_evolucao_grouped;
 
@@ -18,9 +18,10 @@ def main():
                 coalesce((array_agg(unidade ORDER BY dthr_evolucao) FILTER (WHERE unidade IS NOT NULL AND unidade <> ''))[1], 'Não informado') AS unidade_fst,
                 coalesce((array_agg(unidade ORDER BY dthr_evolucao DESC) FILTER (WHERE unidade IS NOT NULL AND unidade <> ''))[1], 'Não informado') AS unidade_lst,
                 count(DISTINCT unidade) FILTER (WHERE unidade IS NOT NULL AND unidade <> '')::smallint AS movimento_unidade_count,
-                count(*)::smallint AS evol_count_sum
+                count(*)::smallint AS evol_count_sum,
+                id_enterprise
             FROM imparare2_evolucao_anon_data_trunc
-            GROUP BY registro, data_dia;
+            GROUP BY registro, id_enterprise, data_dia;
     """)
 
 if __name__ == "__main__":

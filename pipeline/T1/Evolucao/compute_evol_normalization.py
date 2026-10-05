@@ -27,29 +27,35 @@ def main():
     if replace:
         dataRequest.execute("""DROP TABLE if exists imparare2_evolucao_anon_data_trunc;""")
         create_query = """
-                CREATE UNLOGGED TABLE imparare2_evolucao_anon_data_trunc (
-                    registro INTEGER NULL,
-                    perfil TEXT NULL,
-                    unidade TEXT NULL,
-                    sentence_original TEXT NULL,
-                    new_sentence TEXT NULL,
-                    tipo_atendimento TEXT NULL,
-                    dthr_evolucao TIMESTAMP NULL,
-                    data_dia DATE NULL
-                );
-            """
+            CREATE UNLOGGED TABLE imparare2_evolucao_anon_data_trunc (
+                registro INTEGER NULL,
+                perfil TEXT NULL,
+                unidade TEXT NULL,
+                sentence_original TEXT NULL,
+                new_sentence TEXT NULL,
+                tipo_atendimento TEXT NULL,
+                dthr_evolucao TIMESTAMP NULL,
+                data_dia DATE NULL,
+                id_enterprise INTEGER NULL
+            );
+        """
         dataRequest.execute(create_query)
 
     append_query = """
         SELECT 
-            patient_id as registro, 
-            perfil, 
-            dthr_evolucao, 
-            unidade,
-            tipo_atendimento, 
-            texto_evolucao as sentence_original,
-            dthr_evolucao::date as data_dia 
-        FROM imparare2_evolucao_prepared
+            record_id AS registro,
+            provider_profile AS perfil, 
+            evolution_date AS dthr_evolucao,
+            evolution_date::date as data_dia,
+            unity_code_and_description AS unidade, 
+            STRING_AGG(distinct evolution_description, '. ')  AS sentence_original,
+            attendance_type AS tipo_atendimento,
+            h.id_enterprise
+        FROM evolutions e
+        inner join hospitals h
+            ON e.id_hospital = h.id_hospital
+        -- TODO: add inner join em patients to update assim filtrando dados somente de quem irá atualizar
+        GROUP BY record_id, id_enterprise, provider_profile, evolution_date, unity_code_and_description, attendance_type
     """
 
     df_iterator = dataRequest.get_data(queryText= append_query, chunck= 2000)

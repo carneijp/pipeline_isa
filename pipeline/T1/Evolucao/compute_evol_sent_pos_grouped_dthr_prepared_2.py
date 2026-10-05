@@ -17,21 +17,8 @@ def worker(c:pd.DataFrame):
 
     c["termos_achados_agg"] = c["termos_achados_agg"].astype('str')
     
-    tuplas: list[tuple[str, str]] = [("[", "")]
-    # c['termos_achados_agg'] = c['termos_achados_agg'].str.replace("[", "")
+    tuplas: list[tuple[str, str]] = [("[", ""), ("]", ""), (" ", ""), ("'", ""), (",", " ")]
     c = maestro.replace_values_list(df= c, column= "termos_achados_agg", arrayDeTuplas= tuplas)
-
-    tuplas = [("]", "")]
-    c = maestro.replace_values_list(df= c, column= "termos_achados_agg", arrayDeTuplas= tuplas)
-
-    tuplas = [(" ", "")]
-    c = maestro.replace_values_list(df= c, column= "termos_achados_agg",arrayDeTuplas= tuplas)
-
-    tuplas = [("'", "")]
-    c = maestro.replace_values_list(df= c, column= "termos_achados_agg",arrayDeTuplas= tuplas)
-
-    tuplas = [(",", " ")]
-    c = maestro.replace_values_list(df= c, column= "termos_achados_agg",arrayDeTuplas= tuplas)
 
     c = create_columns(c)
 
@@ -57,18 +44,20 @@ def main():
                 dthr_evolucao DATE NULL,
                 termos_texto TEXT NULL,
                 texto_evolucao_agg TEXT NULL,
-                termos_achados TEXT NULL
+                termos_achados TEXT NULL,
+                id_enterprise SMALLINT NULL
             );
         """
         dataRequest.execute(create_query)
 
     append_query = """
         SELECT DISTINCT 
-            registro:: integer,
-            date(dthr_evolucao) AS dthr_evolucao,
+            registro::integer AS registro,
+            dthr_evolucao AS dthr_evolucao,
             string_agg(perfil_termos,  '/*---/*' order by dthr_evolucao_hr):: text AS texto_termos_agg, 
             string_agg(termos_achados,  ','):: text AS termos_achados_agg,
-            string_agg(texto_evolucao,  '\n---\n' order by dthr_evolucao_hr):: text AS texto_evolucao_agg
+            string_agg(texto_evolucao,  '\n---\n' order by dthr_evolucao_hr):: text AS texto_evolucao_agg,
+            id_enterprise::smallint AS id_enterprise
         FROM (
             SELECT 
                 DISTINCT 
@@ -77,10 +66,11 @@ def main():
                 dthr_evolucao_hr, 
                 texto_evolucao, 
                 termos_achados, 
-                perfil_termos
+                perfil_termos,
+                id_enterprise
             FROM imparare2_evol_sent_pos_joined_prepared
         ) dku__subquery
-        GROUP BY registro, date(dthr_evolucao)
+        GROUP BY registro, id_enterprise, dthr_evolucao
     """
 
     df_iterator = dataRequest.get_data(queryText= append_query, chunck= 2000)

@@ -10,11 +10,12 @@ def main():
         create_query = """
             CREATE UNLOGGED TABLE imparare2_evol_sent_pos_joined_prepared (
                 registro int8 NULL,
-                dthr_evolucao timestamp NULL,
+                dthr_evolucao DATE NULL,
                 dthr_evolucao_hr timestamp NULL,
                 texto_evolucao text NULL,
                 termos_achados text NULL,
-                perfil_termos text NULL
+                perfil_termos text NULL,
+                id_enterprise int4 NULL
             );
         """
         dataRequest.execute(create_query)
@@ -23,11 +24,13 @@ def main():
         SELECT
             registro,
             perfil,
-            dthr_evolucao,
+            dthr_evolucao::date as dthr_evolucao,
+            dthr_evolucao as dthr_evolucao_hr,
             sentence_original as texto_evolucao,
-            new_sentence
+            new_sentence,
+            id_enterprise
         FROM imparare2_evolucao_anon_data_trunc
-        ORDER BY registro, new_sentence, dthr_evolucao
+        ORDER BY registro, id_enterprise, new_sentence, dthr_evolucao
     """
     df_iterator = dataRequest.get_data(queryText= append_query, chunck= 2000)
 
