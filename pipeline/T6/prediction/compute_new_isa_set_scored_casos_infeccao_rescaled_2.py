@@ -1,10 +1,11 @@
 from ImpararePackage import dataRequest
 
 def main():
-    dataRequest.execute('DROP TABLE IF EXISTS "imparare2_new_isa_set_scored_casos_infeccao_rescaled";')
-    
     query = """
         SET synchronous_commit = off;
+
+        DROP TABLE IF EXISTS imparare2_new_isa_set_scored_casos_infeccao_rescaled;
+
         CREATE UNLOGGED TABLE imparare2_new_isa_set_scored_casos_infeccao_rescaled AS
         WITH max_value AS(
             SELECT 
@@ -14,6 +15,7 @@ def main():
             SELECT
                 prontuario,
                 dia,
+                id_enterprise,
                 proba_1,
                 prediction,
                 CEILING(proba_1::decimal * 1000.0/(SELECT max_proba FROM max_value))/1000.0 as rescaled_proba_1,
@@ -30,6 +32,7 @@ def main():
         SELECT DISTINCT 
             prontuario, 
             dia, 
+            id_enterprise,
             proba_1, 
             prediction, 
             rescaled_proba_1, 
@@ -37,11 +40,14 @@ def main():
             month_end, 
             month_quadrant
         FROM dados_calc
-        ORDER BY prontuario, dia;
+        ORDER BY prontuario, dia, id_enterprise;
+
+        CREATE INDEX IF NOT EXISTS idx_casos_infeccao_rescaled ON imparare2_new_isa_set_scored_casos_infeccao_rescaled (id_enterprise, prontuario, dia);
+
+        CREATE INDEX IF NOT EXISTS imparare2_new_isa_set_scored_casos_infeccao_rescaled_1_idx ON imparare2_new_isa_set_scored_casos_infeccao_rescaled(id_enterprise, prontuario, dia, month_quadrant, month_start, month_end);
     """
 
     dataRequest.execute(queryText= query)
-    dataRequest.execute('CREATE INDEX IF NOT EXISTS idx_casos_infeccao_rescaled ON imparare2_new_isa_set_scored_casos_infeccao_rescaled (prontuario, dia);')
 
 if __name__ == "__main__":
     main()

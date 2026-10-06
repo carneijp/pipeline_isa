@@ -18,7 +18,7 @@ def _init_worker(model_path: str):
     _model_forest = force_single_thread_model(joblib.load(model_path))
 
 def worker (c: pd.DataFrame):
-    df_basic_info = c[["prontuario", "dia"]].copy()
+    df_basic_info = c[["prontuario", "dia", "id_enterprise"]].copy()
 
     colunas_manter = _model_forest.feature_names_in_
 
@@ -37,6 +37,7 @@ def main():
             CREATE UNLOGGED TABLE imparare2_new_isa_set_scored_casos_infeccao (
                 prontuario INTEGER,
                 dia DATE,
+                id_enterprise SMALLINT,
                 proba_1 FLOAT,
                 prediction INTEGER
             );
@@ -48,7 +49,7 @@ def main():
         FROM imparare2_dataset_label_full
     """
     
-    path = "/workspaces/imparare-surface-materdei-neo/ScriptsLibrary/pipeline/T6/models"
+    path = "/workspaces/pipeline_isa/ScriptsLibrary/pipeline/T6/models"
     model_path = f"{path}/modelo1_caso_infeccao.joblib"
 
     df_iterator = dataRequest.get_data(queryText= append_query, chunck= 2000)

@@ -18,7 +18,7 @@ def _init_worker(model_path: str):
     _model_forest = force_single_thread_model(joblib.load(model_path))
 
 def worker (c: pd.DataFrame):
-    df_basic_info = c[["prontuario", "dia"]].copy()
+    df_basic_info = c[["prontuario", "dia", "id_enterprise"]].copy()
 
     colunas_manter = _model_forest.feature_names_in_
 
@@ -37,6 +37,7 @@ def main():
             CREATE UNLOGGED TABLE imparare2_new_isa_set_scored_casos_comunitaria_or_iras (
                 prontuario INTEGER,
                 dia DATE,
+                id_enterprise SMALLINT,
                 proba_1 FLOAT,
                 prediction INTEGER
             );
@@ -45,16 +46,17 @@ def main():
     
     query = """
         select 
-            distinct on (idlf.prontuario, idlf.dia)
+            distinct on (idlf.prontuario, idlf.dia, idlf.id_enterprise)
             idlf.*
         from imparare2_dataset_label_full idlf 
         inner join imparare2_new_isa_set_scored_casos_infeccao inf
             on idlf.prontuario = inf.prontuario 
-                and idlf.dia = inf.dia -- between inf.dia - INTERVAL '3 DAYS' AND inf.dia + INTERVAL '3 DAYS'  
+                and idlf.dia = inf.dia 
+                and idlf.id_enterprise = inf.id_enterprise
         where inf.proba_1 > 0.4
     """
     
-    path = "/workspaces/imparare-surface-materdei-neo/ScriptsLibrary/pipeline/T6"
+    path = "/workspaces/pipeline_isa/ScriptsLibrary/pipeline/T6"
     model_path = f"{path}/models/modelo1_caso_comunitaria_or_iras.joblib"
 
     df_iterator = dataRequest.get_data(queryText= query, chunck= 2000)

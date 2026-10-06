@@ -3,11 +3,14 @@ from ImpararePackage import dataRequest
 def main():
     query = """
         DROP TABLE IF EXISTS imparare2_new_isa_infeccao;
+        
         SET synchronous_commit = off;
+
         CREATE UNLOGGED TABLE imparare2_new_isa_infeccao AS
             SELECT DISTINCT
                 prontuario as paciente_id, 
                 dia::date as dt_infeccao, 
+                id_enterprise,
                 month_start,
                 month_end,
                 month_quadrant, 

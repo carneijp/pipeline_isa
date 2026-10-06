@@ -13,6 +13,7 @@ def main():
             SELECT 
                 prontuario, 
                 dia, 
+                id_enterprise,
                 proba_1, 
                 prediction,
                 CEILING(proba_1::decimal * 1000.0/(select max_prob_perc_iras from max_iras_prob))/1000.0 AS rescaled_proba_1
