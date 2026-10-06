@@ -1,68 +1,73 @@
 from ImpararePackage import dataRequest
 
 def main():
-    dataRequest.execute('CREATE INDEX IF NOT EXISTS imparare2_cirurgias_grouped_day_joined_idx_1 ON "imparare2_cirurgias_grouped_day_joined"("REGISTRO", "DATA");')
+    dataRequest.execute('CREATE INDEX IF NOT EXISTS imparare2_cirurgias_grouped_day_joined_idx_1 ON imparare2_cirurgias_grouped_day_joined("REGISTRO", "DATA");')
 
-    dataRequest.execute('DROP TABLE IF EXISTS "imparare2_dataset_cirurgias"')
+    dataRequest.execute('DROP TABLE IF EXISTS imparare2_dataset_cirurgias')
     dataRequest.execute("""
         SET synchronous_commit = off;
-        CREATE UNLOGGED TABLE "imparare2_dataset_cirurgias" AS
+        CREATE UNLOGGED TABLE imparare2_dataset_cirurgias AS
             SELECT  
+	-- distinct
                 pct_dia.registro as prontuario, 
                 pct_dia.dia  as dia,
+                pct_dia.id_enterprise as id_enterprise,
                 (SELECT 
                     string_agg(cr.laudos_dia,' | ' order by cr."DATA") 
-                 FROM "imparare2_cirurgias_grouped_day_joined" AS cr 
+                 FROM imparare2_cirurgias_grouped_day_joined AS cr 
                  WHERE pct_dia.registro = cr."REGISTRO" 
-                    AND cr."DATA" BETWEEN pct_dia.dia + INTERVAL '1 day'
-                        and pct_dia.dia + INTERVAL '3 day'
-                 GROUP BY pct_dia.registro, pct_dia.dia
+                    AND cr."DATA" BETWEEN pct_dia.dia + INTERVAL '1 day' AND pct_dia.dia + INTERVAL '3 day'
+                    AND cr.id_enterprise = pct_dia.id_enterprise
+                 GROUP BY pct_dia.registro, pct_dia.dia, pct_dia.id_enterprise
                 ) AS laudos_cirurgicos_futuro,
                 (SELECT 
                 	string_agg(cr.laudos_dia, ' | ' order by cr."DATA")
-                 FROM "imparare2_cirurgias_grouped_day_joined" AS cr 
+                 FROM imparare2_cirurgias_grouped_day_joined AS cr 
                  WHERE pct_dia.registro = cr."REGISTRO" 
                     AND pct_dia.dia = cr."DATA"
-                 GROUP BY pct_dia.registro, pct_dia.dia
+                    AND cr.id_enterprise = pct_dia.id_enterprise
+                 GROUP BY pct_dia.registro, pct_dia.dia, pct_dia.id_enterprise
                 ) AS laudos_cirurgicos_hoje,
                 (SELECT 
                     string_agg(cr.laudos_dia,' | ' order by cr."DATA") 
-                 FROM "imparare2_cirurgias_grouped_day_joined" AS cr 
+                 FROM imparare2_cirurgias_grouped_day_joined AS cr 
                  WHERE pct_dia.registro = cr."REGISTRO" 
-                    AND cr."DATA" BETWEEN pct_dia.dia - INTERVAL '3 day'
-                        and pct_dia.dia - INTERVAL '1 day'
-                 GROUP BY pct_dia.registro, pct_dia.dia
+                    AND cr."DATA" BETWEEN pct_dia.dia - INTERVAL '3 day' AND pct_dia.dia - INTERVAL '1 day'
+                    AND cr.id_enterprise = pct_dia.id_enterprise
+                 GROUP BY pct_dia.registro, pct_dia.dia, pct_dia.id_enterprise
                 ) AS laudos_cirurgicos_passado,
                 COALESCE(
                     (SELECT SUM(cr.tempo_cirurgia_dia)
-                     FROM "imparare2_cirurgias_grouped_day_joined" AS cr 
+                     FROM imparare2_cirurgias_grouped_day_joined AS cr 
                      WHERE pct_dia.registro = cr."REGISTRO" 
                         AND pct_dia.dia = cr."DATA"
-                     GROUP BY pct_dia.registro, pct_dia.dia
+                    	AND cr.id_enterprise = pct_dia.id_enterprise
+                     GROUP BY pct_dia.registro, pct_dia.dia, pct_dia.id_enterprise
                 ), 0) AS tempo_cirurgia_hoje,
                 COALESCE(
                     (SELECT sum(cr.count_procedimentos_dia::numeric) as laudo_exame_imagem_count 
-                     FROM "imparare2_cirurgias_grouped_day_joined" AS cr 
+                     FROM imparare2_cirurgias_grouped_day_joined AS cr 
                      WHERE pct_dia.registro = cr."REGISTRO" 
                         AND pct_dia.dia = cr."DATA"
-                     GROUP BY pct_dia.registro, pct_dia.dia
+                    	AND cr.id_enterprise = pct_dia.id_enterprise
+                     GROUP BY pct_dia.registro, pct_dia.dia, pct_dia.id_enterprise
                ), 0) AS count_laudos_cirurgias_hoje,
                COALESCE(
                     (SELECT
                		  true
-                     FROM "imparare2_cirurgias_grouped_day_joined" AS cr 
+                     FROM imparare2_cirurgias_grouped_day_joined AS cr 
                      WHERE pct_dia.registro = cr."REGISTRO" 
-                        AND cr."DATA" BETWEEN pct_dia.dia - INTERVAL '30 day'
-                        AND pct_dia.dia - INTERVAL '1 day'
+                        AND cr."DATA" BETWEEN pct_dia.dia - INTERVAL '30 day' AND pct_dia.dia - INTERVAL '1 day'
+                    	AND cr.id_enterprise = pct_dia.id_enterprise
                	    limit 1
                ), false) AS cirurgia_dentro_ultimos_30_dias,
                COALESCE(
                     (SELECT
                		  true
-                     FROM "imparare2_cirurgias_grouped_day_joined" AS cr 
+                     FROM imparare2_cirurgias_grouped_day_joined AS cr 
                      WHERE pct_dia.registro = cr."REGISTRO" 
-                        AND cr."DATA" BETWEEN pct_dia.dia - INTERVAL '90 day'
-                        AND pct_dia.dia - INTERVAL '1 day'
+                        AND cr."DATA" BETWEEN pct_dia.dia - INTERVAL '90 day' AND pct_dia.dia - INTERVAL '1 day'
+                        AND cr.id_enterprise = pct_dia.id_enterprise 
                	    limit 1
                ), false) AS cirurgia_dentro_ultimos_90_dias
             FROM imparare2_dataset_label pct_dia

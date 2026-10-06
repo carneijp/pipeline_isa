@@ -25,7 +25,9 @@ def main():
                 h.id_enterprise
             FROM blood_culture_reports bcr
             INNER JOIN hospitals h 
-                ON bcr.id_hospital = h.id_hospital
+                ON bcr.id_hospital = h.id_hospital;
+        
+        CREATE INDEX IF NOT EXISTS imparare2_wellhead_hml_blood_culture_prepared_idx_1 ON imparare2_wellhead_hml_blood_culture_prepared(id_enterprise, registro, date(dthr_pedido));
     """)
 
 if __name__ == "__main__":

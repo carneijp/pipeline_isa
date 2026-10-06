@@ -112,6 +112,7 @@ def main():
             CREATE UNLOGGED TABLE imparare2_dataset_sangue_categ (
                 prontuario INTEGER,
                 data_requisicao_exame DATE,
+                id_enterprise SMALLINT,
                 leuco_min FLOAT,
                 leuco_max FLOAT,
                 leuco_avg FLOAT,
@@ -138,6 +139,8 @@ def main():
                 "LIQUOR_ALTERA_GLICOSE" INTEGER,
                 "LIQUOR_ALTERA_PROTEINA" INTEGER
             );
+
+            CREATE INDEX IF NOT EXISTS idx_dataset_sangue_categ_idx_1 ON imparare2_dataset_sangue_categ(id_enterprise, prontuario, data_requisicao_exame);
         """
         dataRequest.execute(create_query)
 

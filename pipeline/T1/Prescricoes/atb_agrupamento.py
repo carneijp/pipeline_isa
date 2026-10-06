@@ -388,14 +388,15 @@ def worker(c = pd.DataFrame):
     }
     c = maestro.rename_columns(df= c, DictColumns= novosNomes)
 
-    dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "imparare2_prescricoesantibiotico_prepared_teste", if_exists=  "append")
+    dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "imparare2_prescricoesantibiotico_prepared", if_exists=  "append")
 
 def main():
     replace =True
     if replace:
         create_query = """
-            DROP TABLE IF EXISTS imparare2_prescricoesantibiotico_prepared_teste;
-            CREATE UNLOGGED TABLE IF NOT EXISTS imparare2_prescricoesantibiotico_prepared_teste (
+            DROP TABLE IF EXISTS imparare2_prescricoesantibiotico_prepared;
+
+            CREATE UNLOGGED TABLE IF NOT EXISTS imparare2_prescricoesantibiotico_prepared (
                 registro INTEGER,
                 dthr_prescricao TIMESTAMP,
                 atb TEXT NULL,
@@ -416,7 +417,9 @@ def main():
                 attendance_type TEXT NULL,
                 id_enterprise SMALLINT
             );
-            """
+
+            CREATE INDEX IF NOT EXISTS idx_imparare2_prescricoesantibiotico_prepared ON imparare2_prescricoesantibiotico_prepared (id_enterprise, registro, date(dthr_prescricao));
+        """
         dataRequest.execute(queryText= create_query)
 
     append_query = f"""

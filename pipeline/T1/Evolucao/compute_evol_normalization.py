@@ -25,8 +25,9 @@ def main():
     replace =True
 
     if replace:
-        dataRequest.execute("""DROP TABLE if exists imparare2_evolucao_anon_data_trunc;""")
         create_query = """
+            DROP TABLE if exists imparare2_evolucao_anon_data_trunc;
+
             CREATE UNLOGGED TABLE imparare2_evolucao_anon_data_trunc (
                 registro INTEGER NULL,
                 perfil TEXT NULL,
@@ -38,6 +39,8 @@ def main():
                 data_dia DATE NULL,
                 id_enterprise INTEGER NULL
             );
+
+            CREATE INDEX IF NOT EXISTS imparare2_evolucao_anon_data_trunc_idx_1  ON imparare2_evolucao_anon_data_trunc(registro, id_enterprise, data_dia);
         """
         dataRequest.execute(create_query)
 

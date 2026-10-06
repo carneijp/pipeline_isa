@@ -107,8 +107,11 @@ def main():
                 outros_virus FLOAT,
                 pcr FLOAT,
                 proteina_liquor FLOAT,
-                glicose_liquor FLOAT
+                glicose_liquor FLOAT,
+                id_enterprise SMALLINT
             );
+
+            CREATE INDEX IF NOT EXISTS hemograma_bioquimica_pivot_idx_1 ON hemograma_bioquimica_pivot(id_enterprise, registro, date(laboratory_request_date));
         """
         dataRequest.execute(create_query)
 
@@ -118,10 +121,14 @@ def main():
             laboratory_request_date,
             exam_lab_name,
             er.exam_result_description as valor,
-            exam_result_field_name as tipo
+            exam_result_field_name as tipo,
+            h.id_enterprise::SMALLINT
         from exams_reports er
-        where (record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()})
-            AND (
+        inner join hospitals h 
+            on er.id_hospital = h.id_hospital
+        where -- (record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()})
+            -- AND 
+            (
                 (LOWER(exam_lab_name) = 'hemograma' and exam_result_field_name in ('GLOBAL DE LEUCOCITOS', 'RDW', 'SEGMETADO NEUTROFILO', 'Contagem de leucócitos', 'Leucócitos', 'Segmentados')) 
                 or (er.exam_lab_name in ('PCR (PROTEINA C REATIVA)', 'PCR - Proteína C Reativa') and er.exam_result_field_name in ('RESULTADO', 'PCR - Proteína C Reativa'))
                 or er.exam_result_field_name ilike'%prot%li%'

@@ -8,6 +8,7 @@ def main():
             select 
                 s.registro, 
                 s.laboratory_request_date::date as data_requisicao_exame,
+                s.id_enterprise::smallint as id_enterprise,
                 min(s.leucocitos) as leuco_min,
                 max(s.leucocitos) as leuco_max,
                 avg(s.leucocitos) as leuco_avg,
@@ -30,7 +31,7 @@ def main():
                 --max(s.glicose_liquor) as glicose_liquor_max
                 --avg(s.glicose_liquor) as glicose_liquor_avg
             from  hemograma_bioquimica_pivot s
-            group by s.registro, s.laboratory_request_date;
+            group by s.id_enterprise, s.registro, date(s.laboratory_request_date);
     """)
 
 if __name__ == "__main__":

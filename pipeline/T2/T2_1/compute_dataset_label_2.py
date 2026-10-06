@@ -3,6 +3,7 @@ from ImpararePackage import dataRequest
 def main():
     dataRequest.execute("""
         DROP TABLE IF EXISTS imparare2_dataset_label;
+        
         CREATE UNLOGGED TABLE imparare2_dataset_label AS
             SELECT 
                 d.registro, 
@@ -16,9 +17,11 @@ def main():
                 MAX(dthr_alta)::DATE as dthr_alta,
                 COALESCE(d.dia-min(dthr_atendimento)::date, 0)::SMALLINT as los_dias,
                 count(*)::SMALLINT as count,
-                id_enterprise
+                id_enterprise::SMALLINT as id_enterprise
             FROM imparare2_paciente_dia_internacao_with_label_nova as d
-            GROUP BY d.registro, d.dia, id_enterprise
+            GROUP BY d.registro, d.dia, id_enterprise;
+
+        CREATE INDEX IF NOT EXISTS imparare2_dataset_label_idx_1 ON imparare2_dataset_label(id_enterprise, registro, dia);
     """)
 
 if __name__ == "__main__":

@@ -1,14 +1,16 @@
 from ImpararePackage import dataRequest
 
 def main():
-    dataRequest.execute('DROP TABLE IF EXISTS "imparare2_dataset_sangue_categ_temporal"')
     dataRequest.execute("""
-        create index if not exists idx_dataset_sangue_categ_pct_dia on imparare2_dataset_sangue_categ(prontuario, data_requisicao_exame);
         SET synchronous_commit = off;
+        
+        DROP TABLE IF EXISTS imparare2_dataset_sangue_categ_temporal;
+
         CREATE UNLOGGED TABLE imparare2_dataset_sangue_categ_temporal as
             SELECT
                 pct_dia.registro,
                 pct_dia.dia,
+                pct_dia.id_enterprise::SMALLINT AS id_enterprise,
                 hoje.data_requisicao_exame,
                 hoje.leuco_min, hoje.leuco_max, hoje.leuco_avg,
                 hoje.rdw_min,   hoje.rdw_max,   hoje.rdw_avg,
@@ -50,7 +52,8 @@ def main():
             FROM imparare2_dataset_label pct_dia
             LEFT JOIN imparare2_dataset_sangue_categ hoje
                 ON hoje.prontuario = pct_dia.registro
-                AND hoje.data_requisicao_exame = pct_dia.dia
+                	AND hoje.data_requisicao_exame = pct_dia.dia
+                	AND hoje.id_enterprise = pct_dia.id_enterprise
             LEFT JOIN LATERAL (
                 SELECT
                     MAX(s."LEUCO_ALTERADA")               AS leuco_alterada,
@@ -66,8 +69,8 @@ def main():
                     MAX(s."LIQUOR_ALTERA_PROTEINA")       AS liquor_proteina
                 FROM imparare2_dataset_sangue_categ s
                 WHERE s.prontuario = pct_dia.registro
-                AND s.data_requisicao_exame
-                        BETWEEN pct_dia.dia + 1 AND pct_dia.dia + 3
+                	AND s.data_requisicao_exame BETWEEN pct_dia.dia + 1 AND pct_dia.dia + 3
+                	AND s.id_enterprise = pct_dia.id_enterprise
             ) futuro ON TRUE
             LEFT JOIN LATERAL (
                 SELECT
@@ -84,8 +87,8 @@ def main():
                     MAX(s."LIQUOR_ALTERA_PROTEINA")       AS liquor_proteina
                 FROM imparare2_dataset_sangue_categ s
                 WHERE s.prontuario = pct_dia.registro
-                AND s.data_requisicao_exame
-                        BETWEEN pct_dia.dia - 3 AND pct_dia.dia
+                	AND s.data_requisicao_exame BETWEEN pct_dia.dia - 3 AND pct_dia.dia
+                	AND s.id_enterprise = pct_dia.id_enterprise
         ) passado ON TRUE;
     """)
 
