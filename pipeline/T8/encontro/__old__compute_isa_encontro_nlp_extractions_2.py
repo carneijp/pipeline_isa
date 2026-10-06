@@ -138,13 +138,14 @@ def main():
     print(client.cluster.health())
     print(client.ping())
 
-    index_name = maestro.getELKIndexValue("encontros")
+    index_name = "encontros"
     if maestro.get_must_update_all_patients() == '1':
         create_query = """
             DROP TABLE IF EXISTS isa_encontro;
             CREATE UNLOGGED TABLE isa_encontro (
                 id TEXT,
                 prontuario INTEGER,
+                id_enterprise SMALLINT,
                 dt_encontro TIMESTAMP,
                 local_encontro TEXT,
                 termos_texto TEXT,
@@ -189,6 +190,9 @@ def main():
                         "prontuario": {
                             "type": "integer"
                         },
+                        "id_enterprise": {
+                            "type": "integer"
+                        },
                         "paciente_id": {
                             "type": "integer",
                             "index": False,
@@ -229,10 +233,11 @@ def main():
             )
     else: # Vamos deletar somente os dados dos pacientes que serão adicionados
         # Drop local table
+        # TODO: Arrumar pois agora é chave composta id_paciente + id_enterprise
         dataRequest.execute("DELETE FROM isa_encontro WHERE prontuario in (select distinct record_id from patients_to_update)", isLocal= True)
 
         # Drop ELK index
-        df = dataRequest.get_data(queryText= f"SELECT distinct record_id FROM patients_to_update", chunck= None)
+        df = dataRequest.get_data(queryText= f"SELECT distinct record_id, id_enterprise FROM patients_to_update", chunck= None)
         pcts_ids = df['record_id'].tolist()
 
         def chunks(seq, n):
@@ -246,7 +251,8 @@ def main():
                 index= index_name,
                 query= {
                     "terms": {
-                        "prontuario": lote
+                        "prontuario": lote,
+                        "id_enterprise": df[df['record_id'].isin(lote)]['id_enterprise'].tolist()
                     }
                 },
                 conflicts= "proceed",
@@ -255,28 +261,29 @@ def main():
             )
             total += resp['deleted']
             print(f"Deletados {resp['deleted']} encontros do lote de {len(lote)} pacientes. Total deletados até agora: {total}")
+        
         print(f"Deletados {total} encontros no total para {len(pcts_ids)} pacientes.")
     
     append_query = """
-        SELECT 
-            md5(isa_encontro.registro::varchar || isa_encontro.data_dia::varchar || isa_encontro.unidade_fst::varchar || isa_encontro.unidade_lst::varchar) as id,
+        SELECT distinct 
+            md5(isa_encontro.registro::varchar || isa_encontro.id_enterprise::varchar || isa_encontro.data_dia::varchar || isa_encontro.unidade_fst::varchar || isa_encontro.unidade_lst::varchar) as id,
             isa_encontro.registro AS prontuario,
+            c.id_hospital as id_hospital,
+            isa_encontro.id_enterprise AS id_enterprise,
             isa_encontro.data_dia AS dt_encontro,
             isa_encontro.unidade_fst AS local_encontro,
             evolucao.termos_texto AS termos_texto,
             evolucao.texto_evolucao_agg AS texto_evolucao_agg,
-            evolucao.termos_achados AS termos_achados,
-            c.company_code,
-            c.hospital_id as company_id
+            evolucao.termos_achados AS termos_achados
         FROM imparare2_evolucao_grouped isa_encontro
         LEFT JOIN imparare2_evol_sent_pos_grouped_dthr_prepared evolucao
-            ON (isa_encontro.registro = evolucao.registro)
-                AND (isa_encontro.data_dia = evolucao.dthr_evolucao::date)
+            ON isa_encontro.registro = evolucao.registro
+                AND isa_encontro.id_enterprise = evolucao.id_enterprise 
+                AND isa_encontro.data_dia = evolucao.dthr_evolucao::date
         LEFT JOIN imparare_patient_company_treatment c 
             ON isa_encontro.registro = c.record_id
-                AND isa_encontro.data_dia between c.attendance_date 
-                AND c.discharge_date
-                AND c.company_code IS NOT null;
+                AND c.id_enterprise = isa_encontro.id_enterprise
+                AND isa_encontro.data_dia between c.attendance_date AND c.discharge_date + interval '1 day'
     """
     df_iterator = dataRequest.get_data(queryText= append_query)
 
