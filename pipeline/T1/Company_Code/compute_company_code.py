@@ -21,8 +21,8 @@ def main():
                 attendance_id INTEGER,
                 attendance_date DATE,
                 hospital_discharge_date DATE,
-                company_code TEXT,
-                hospital_id TEXT
+                id_hospital smallint,
+                id_enterprise smallint
             );
         """
         dataRequest.execute(create_query)
@@ -33,17 +33,17 @@ def main():
                 a.record_id, 
                 a.attendance_id,
                 a.attendance_date,
-                a.company_code
+                h.id_hospital
             )
             a.record_id, 
             a.attendance_id,
             a.attendance_date,
             a.hospital_discharge_date,
-            a.company_code, 
-            h."ID" as hospital_id
+            h.id_hospital,
+            h.id_enterprise
         from hospitalization a
-        INNER JOIN hospitals as h 
-            ON h."HOSPITAL_ID"::text = a.company_code::text
+        INNER JOIN hospitals as h
+        	on a.id_hospital = h.id_hospital
         WHERE a.record_id in (select distinct record_id from patients_to_update) or 1 = {maestro.get_must_update_all_patients()};
     """
     
