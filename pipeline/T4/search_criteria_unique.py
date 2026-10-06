@@ -30,18 +30,19 @@ def main():
             columns = ""
             for cri in maestro.CRITERIOS_FEATURE_EXTRACTION_MODELO:
                 columns += f"{cri}{s} FLOAT4,\n"
-                # columns += f"{cri}{s}_sent_pos text null,\n"
                 columns += f"{cri}{s}_sent_pos_count SMALLINT,\n"
 
             columns = columns.strip(',\n')
             query_create_table = f"""
                 DROP TABLE IF EXISTS imparare2_search_criteria_dense{s};
-                CREATE UNLOGGED TABLE public.imparare2_search_criteria_dense{s} (
-                    prontuario int8 NULL, 
-                    dia timestamp NULL,
+                CREATE UNLOGGED TABLE imparare2_search_criteria_dense{s} (
+                    prontuario int4, 
+                    dia timestamp,
+                    id_enterprise smallint,
                     {columns}
                 );
-                CREATE INDEX imparare2_search_criteria_dense{s}_idx_1 ON public.imparare2_search_criteria_dense{s} USING btree(prontuario, dia);
+                        
+                CREATE INDEX imparare2_search_criteria_dense{s}_idx_1 ON imparare2_search_criteria_dense{s} USING btree(id_enterprise, prontuario, dia);
             """
             dataRequest.execute(query_create_table)
 
@@ -49,6 +50,7 @@ def main():
         SELECT 
             prontuario, 
             dia, 
+            id_enterprise,
             texto_futuro,
             texto_hoje,
             texto_passado

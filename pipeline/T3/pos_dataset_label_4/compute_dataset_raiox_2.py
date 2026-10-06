@@ -49,6 +49,8 @@ def main():
                 ON pct_dia.registro = rx_computed.record_id
                 AND pct_dia.dia = rx_computed.data
                 AND pct_dia.id_enterprise = rx_computed.id_enterprise;
+            
+        CREATE INDEX IF NOT EXISTS idx_rx_reg_dia ON imparare2_dataset_raiox (id_enterprise, prontuario, dia);
     """)
 
 

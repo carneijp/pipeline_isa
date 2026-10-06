@@ -218,12 +218,11 @@ def main():
 
     if replace:
         create_query = """
-            CREATE INDEX IF NOT EXISTS imparare2_sinalvitais_pivot_idx_1 ON imparare2_sinalvitais_pivot(registro, dia);
-            
             DROP TABLE IF EXISTS imparare2_dataset_enfermagem_categ;
             CREATE UNLOGGED TABLE imparare2_dataset_enfermagem_categ (
                 registro INTEGER,
                 dia TIMESTAMP,
+                id_enterprise SMALLINT,
                 idade_dias FLOAT,
                 idade_meses FLOAT,
                 "FC_min" FLOAT,
@@ -267,6 +266,7 @@ def main():
             select 
                 registro AS registro,
                 dia::date AS dia,
+                id_enterprise::SMALLINT AS id_enterprise,
                 MIN("FC") AS "FC_min",
                 MAX("FC") AS "FC_max",
                 MIN("FR") AS "FR_min",

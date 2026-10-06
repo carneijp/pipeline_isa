@@ -77,6 +77,8 @@ def main():
                     AND evo.id_enterprise = antb.id_enterprise
                     AND antb.dthr_prescricao BETWEEN evo.dia - INTERVAL '3 day' AND evo.dia + INTERVAL '3 day'
             GROUP BY evo.registro, evo.dia, evo.id_enterprise;
+
+        CREATE INDEX IF NOT EXISTS idx_atb_reg_dia ON imparare2_dataset_prescricao_ab (id_enterprise, prontuario, dia);
     """)
 
 if __name__ == "__main__":

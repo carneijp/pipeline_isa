@@ -116,6 +116,8 @@ def main():
                     	AND pct_dia.registro = exa.registro
                         AND pct_dia.dia = date(exa.dthr_pedido)
                 GROUP BY pct_dia.registro, pct_dia.dia, pct_dia.id_enterprise;
+
+                CREATE INDEX IF NOT EXISTS idx_hem_reg_dia ON imparare2_dataset_hemograma (id_enterprise, prontuario, dia);
         """)
 
 if __name__ == "__main__":

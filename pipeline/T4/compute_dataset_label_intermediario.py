@@ -1,28 +1,23 @@
 from ImpararePackage import dataRequest
 
 def main():
-    dataRequest.execute('CREATE INDEX IF NOT EXISTS idx_dataset_cirurgias ON "imparare2_dataset_cirurgias" (prontuario, "dia");')
-    dataRequest.execute('CREATE INDEX IF NOT EXISTS idx_dataset_enfermagem_categ ON "imparare2_dataset_enfermagem_categ" (registro, dia);')
-    dataRequest.execute('CREATE INDEX IF NOT EXISTS idx_dataset_evolucao ON "imparare2_dataset_evolucao" (prontuario, dia);')
-    dataRequest.execute('CREATE INDEX IF NOT EXISTS idx_dataset_prescricao_ab ON "imparare2_dataset_prescricao_ab" (prontuario, dia);')
-    dataRequest.execute('CREATE INDEX IF NOT EXISTS idx_dataset_hemograma ON "imparare2_dataset_hemograma" (prontuario, dia);')
-    dataRequest.execute('CREATE INDEX IF NOT EXISTS idx_dataset_raiox ON "imparare2_dataset_raiox" (prontuario, dia);')
-    dataRequest.execute('CREATE INDEX IF NOT EXISTS idx_imparare2_dataset_label ON "imparare2_dataset_label" (registro, dia);')
-
-    dataRequest.execute('DROP TABLE IF EXISTS "imparare2_dataset_label_intermediario"')
     dataRequest.execute("""
         SET synchronous_commit = off;
+
+        DROP TABLE IF EXISTS imparare2_dataset_label_intermediario;
+
         CREATE UNLOGGED TABLE imparare2_dataset_label_intermediario AS
-           SELECT DISTINCT ON(df_pct_dia.registro, df_pct_dia.dia)
+            SELECT DISTINCT ON(df_pct_dia.registro, df_pct_dia.dia)
                 df_pct_dia.registro::INT4 AS prontuario,
                 df_pct_dia.dia AS dia,
+                df_pct_dia.id_enterprise::SMALLINT AS id_enterprise,
                 df_pct_dia.idade_anos::SMALLINT AS idade_anos,
                 df_pct_dia.idade_dias::INT4 AS idade_dias,
                 df_pct_dia.los_dias::SMALLINT,
                 -- ------------------------------------
                 --          Cirurgias
                 -- ------------------------------------
-                df_cir.tempo_cirurgia_hoje::SMALLINT AS cirurgia_tempo_total,
+                df_cir.tempo_cirurgia_hoje::INT4 AS cirurgia_tempo_total,
                 df_cir.count_laudos_cirurgias_hoje::SMALLINT AS cirurgia_procedimentos_total,
                 df_cir.cirurgia_dentro_ultimos_30_dias AS cirurgia_em_30_dias,
                 df_cir.cirurgia_dentro_ultimos_90_dias AS cirurgia_em_90_dias,
@@ -152,13 +147,14 @@ def main():
                 -- df_cult.qtd_hemocultura_sem_crescimento_hoje::SMALLINT,
                 -- df_cult.qtd_hemocultura_sem_crescimento_passado::SMALLINT,
                 df_cult.qtd_cultura_positiva_futuro::SMALLINT,
-                -- df_cult.qtd_cultura_positiva_hoje::SMALLINT,
+                df_cult.qtd_cultura_positiva_hoje::SMALLINT,
                 df_cult.qtd_cultura_positiva_passado::SMALLINT,
                 df_cult.qtd_cultura_sem_crescimento_futuro::SMALLINT,
-                -- df_cult.qtd_cultura_sem_crescimento_hoje::SMALLINT,
+                df_cult.qtd_cultura_sem_crescimento_hoje::SMALLINT,
                 df_cult.qtd_cultura_sem_crescimento_passado::SMALLINT,
-                df_cult.cultura_pos_categ_passado::SMALLINT,
-                df_cult.cultura_pos_categ_futuro::SMALLINT,
+                df_cult.cultura_pos_categ_passado::BOOLEAN,
+                df_cult.cultura_pos_categ_hoje::BOOLEAN,
+                df_cult.cultura_pos_categ_futuro::BOOLEAN,
                 -- df_cult.qtd_urocultura_positiva_futuro::SMALLINT,
                 -- df_cult.qtd_urocultura_positiva_hoje::SMALLINT,
                 -- df_cult.qtd_urocultura_positiva_passado::SMALLINT,
@@ -220,26 +216,35 @@ def main():
                 COALESCE(df_rx.laudo_exame_count, 0)::SMALLINT AS laudo_exame_count
             FROM imparare2_dataset_label df_pct_dia
             LEFT JOIN imparare2_dataset_sangue_categ_temporal df_sangue
-                ON (df_pct_dia.registro = df_sangue.registro)
-                    AND (df_pct_dia.dia = df_sangue.data_requisicao_exame)
+                ON df_pct_dia.registro = df_sangue.registro
+                    AND df_pct_dia.dia = df_sangue.data_requisicao_exame
+                    AND df_pct_dia.id_enterprise = df_sangue.id_enterprise
             LEFT JOIN imparare2_dataset_cirurgias df_cir
-                ON (df_pct_dia.registro = df_cir.prontuario)
-                    AND (df_pct_dia.dia = df_cir.dia)
+                ON df_pct_dia.registro = df_cir.prontuario
+                    AND df_pct_dia.dia = df_cir.dia
+                    AND df_pct_dia.id_enterprise = df_cir.id_enterprise
             LEFT JOIN imparare2_dataset_enfermagem_categ df_enf_svt
-                ON (df_pct_dia.registro = df_enf_svt.registro)
-                    AND (df_pct_dia.dia = df_enf_svt.dia)
+                ON df_pct_dia.registro = df_enf_svt.registro
+                    AND df_pct_dia.dia = df_enf_svt.dia
+                    AND df_pct_dia.id_enterprise = df_enf_svt.id_enterprise
             LEFT JOIN imparare2_dataset_evolucao df_evo
-                ON (df_pct_dia.registro = df_evo.prontuario)
-                    AND (df_pct_dia.dia = df_evo.dia)
+                ON df_pct_dia.registro = df_evo.prontuario
+                    AND df_pct_dia.dia = df_evo.dia
+                    AND df_pct_dia.id_enterprise = df_evo.id_enterprise
             LEFT JOIN imparare2_dataset_prescricao_ab df_atb
-                ON (df_pct_dia.registro = df_atb.prontuario)
-                    AND (df_pct_dia.dia = df_atb.dia)
+                ON df_pct_dia.registro = df_atb.prontuario
+                    AND df_pct_dia.dia = df_atb.dia
+                    AND df_pct_dia.id_enterprise = df_atb.id_enterprise
             LEFT JOIN imparare2_dataset_hemograma df_cult
-                ON (df_pct_dia.registro = df_cult.prontuario)
-                    AND (df_pct_dia.dia = df_cult.dia)
+                ON df_pct_dia.registro = df_cult.prontuario
+                    AND df_pct_dia.dia = df_cult.dia
+                    AND df_pct_dia.id_enterprise = df_cult.id_enterprise
             LEFT JOIN imparare2_dataset_raiox df_rx
-                ON (df_pct_dia.registro = df_rx.prontuario)
-                    AND (df_pct_dia.dia = df_rx.dia);
+                ON df_pct_dia.registro = df_rx.prontuario
+                    AND df_pct_dia.dia = df_rx.dia
+                    AND df_pct_dia.id_enterprise = df_rx.id_enterprise;
+
+        CREATE INDEX IF NOT EXISTS idx_dataset_label_intermediario ON imparare2_dataset_label_intermediario (id_enterprise, prontuario, dia);
     """)
 
 if __name__ == "__main__":

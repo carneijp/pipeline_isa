@@ -121,6 +121,8 @@ def main():
                 "perfil_OUTROS" SMALLINT,
                 id_enterprise SMALLINT
             );
+
+            CREATE INDEX IF NOT EXISTS imparare2_sinalvitais_pivot_idx_1 ON imparare2_sinalvitais_pivot(id_enterprise, registro, dia);
         """
         dataRequest.execute(create_query)
     

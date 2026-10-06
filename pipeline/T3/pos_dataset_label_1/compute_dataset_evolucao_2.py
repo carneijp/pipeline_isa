@@ -38,6 +38,8 @@ def main():
                 ON h.registro = l.registro 
 				AND h.data_dia = l.dia
 				AND h.id_enterprise = l.id_enterprise;
+
+            CREATE INDEX IF NOT EXISTS idx_evo_reg_dia ON imparare2_dataset_evolucao (id_enterprise, prontuario, dia);
     """)
 
 

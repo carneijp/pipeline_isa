@@ -74,6 +74,8 @@ def main():
             LEFT JOIN imparare2_cirurgias_grouped_day_joined cj
                 on pct_dia.registro = cj."REGISTRO"
                     and pct_dia.dia = cj."DATA";
+        
+        CREATE INDEX IF NOT EXISTS idx_cir_reg_dia ON imparare2_dataset_cirurgias (id_enterprise, prontuario, dia);
     """)
     
 if __name__ == "__main__":
