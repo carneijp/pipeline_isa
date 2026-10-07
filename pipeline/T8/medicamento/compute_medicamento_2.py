@@ -5,10 +5,8 @@ import threading
 from multiprocessing import Pool, cpu_count
 import itertools
 
-def worker(args: tuple[pd.DataFrame, str]):
-    c, index_name = args
-
-    def elk_upload(c: pd.DataFrame, index_name: str):
+def worker(c: pd.DataFrame):
+    def elk_upload(c: pd.DataFrame):
         client = dataRequest.ELASTICSEARCH_CONNECTION
         c["paciente_id"] = c["patient_id"]
         c = maestro.keep_columns(df= c, arrayColumns= [
@@ -21,15 +19,15 @@ def worker(args: tuple[pd.DataFrame, str]):
             "frequencia",
             "via",
             "paciente_id",
+            "id_enterprise"
         ])
-        actions = maestro.generate_actions(c, index_name)
+        actions = maestro.generate_actions(c, "medicamentos")
         maestro.bulk_upload_with_retry(client, actions, context="medicamento", thread_count=1)
 
-    print("Iniciando uploads!")
     table = "isa_medicamento"
     
     jobs = [
-        threading.Thread(target= elk_upload, args=(c.copy(), index_name)), 
+        threading.Thread(target= elk_upload, args=(c.copy(), )), 
         threading.Thread(target=dataRequest.set_data_on_sql, args=(c, table), kwargs={"if_exists": "append", "isLocal": True})
     ]
     for j in jobs:
@@ -44,13 +42,14 @@ def main():
     print(client.cluster.health())
     print(client.ping())
 
-    index_name = maestro.getELKIndexValue("medicamentos")
+    index_name = "medicamentos"
     if maestro.get_must_update_all_patients() == '1':
         create_query = """
             DROP TABLE IF EXISTS isa_medicamento;
             CREATE UNLOGGED TABLE isa_medicamento (
                 id TEXT,
                 patient_id INTEGER,
+                id_enterprise SMALLINT,
                 codigo_prescricao INTEGER,
                 dthr_prescricao TIMESTAMP,
                 medicamento TEXT,
@@ -60,12 +59,10 @@ def main():
                 via TEXT,
                 tipo_atendimento TEXT,
                 ordem TEXT,
-                criterio TEXT,
-                company_code TEXT,
-                company_id TEXT
+                criterio TEXT
             );
         """
-        dataRequest.execute(create_query, isLocal= False)
+        # dataRequest.execute(create_query, isLocal= False)
         dataRequest.execute(create_query, isLocal= True)
         client.options(ignore_status=[400, 404]).indices.delete(index=index_name)
         
@@ -98,17 +95,17 @@ def main():
                         "frequencia": {"type": "keyword", "index": False, "doc_values": False},
                         "via": {"type": "keyword", "index": False, "doc_values": False},
                         "paciente_id": {"type": "integer"},
+                        "id_enterprise": {"type": "short"}
                     }
                 }
             )
             maestro.wait_for_index_health(client, index_name)
     else:
         # Drop local table
-        dataRequest.execute("DELETE FROM isa_medicamento WHERE patient_id in (select distinct record_id from patients_to_update)", isLocal= True)
+        dataRequest.execute("DELETE FROM isa_medicamento WHERE (patient_id, id_enterprise) in (select distinct record_id, id_enterprise from patients_to_update)", isLocal= True)
         
         #Busca IDS para deleção
-        df = dataRequest.get_data(queryText= f"SELECT distinct record_id FROM patients_to_update", chunck= None)
-        pcts_ids = df['record_id'].tolist()
+        df = dataRequest.get_data(queryText= f"SELECT distinct record_id, id_enterprise FROM patients_to_update", chunck= None)
 
         # Drop ELK index
         def chunks(seq, n):
@@ -117,51 +114,56 @@ def main():
                 yield seq[i:i + n]
 
         total= 0
-        for lote in chunks(pcts_ids, 1000):
+        for lote in chunks(df, 1000):
             resp = client.delete_by_query(
                 index= index_name,
                 query= {
-                    "terms": {
-                        "paciente_id": lote
+                    "bool": {
+                        "should": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {"term": {"id_enterprise": ent}},
+                                        {"terms": {"prontuario": grupo["record_id"].tolist()}},
+                                    ]
+                                }
+                            }
+                            for ent, grupo in lote.groupby("id_enterprise")
+                        ], 
+                        "minimum_should_match": 1
                     }
                 },
                 conflicts= "proceed",
-                refresh= True,
+                refresh= False,
                 slices= "auto"
             )
             total += resp['deleted']
             print(f"Deletados {resp['deleted']} medicamentos do lote de {len(lote)} pacientes. Total deletados até agora: {total}")
-        print(f"Deletados {total} medicamentos no total para {len(pcts_ids)} pacientes.")
 
+        client.indices.refresh(index=index_name)
+        print(f"Deletados {total} medicamentos no total para {len(df)} pacientes.")
 
     append_query= """
        SELECT 
-            md5(registro::varchar||cd_pre_med::varchar||dthr_prescricao::varchar||antibiotico::varchar||dose::varchar||"tipo_atendimento"::varchar) as id, 
-            "registro" as patient_id, 
-            "cd_pre_med" as codigo_prescricao,
+            md5(registro::varchar || s.id_enterprise::varchar || dthr_prescricao::varchar||atb::varchar||dose::varchar||attendance_type::varchar) as id, 
+            registro as patient_id, 
+            s.id_enterprise,
+            null as codigo_prescricao,
             DTHR_PRESCRICAO as dthr_prescricao, 
-            ANTIBIOTICO as medicamento,
+            atb as medicamento,
             dose,
             unidade,
             frequencia,
             via,
-            "tipo_atendimento",
+            attendance_type as tipo_atendimento,
             null as ordem,
-            null as criterio,
-            c.company_code, 
-            c.hospital_id as company_id
-        FROM "imparare2_prescricoes_followup_stacked" s
-        LEFT JOIN imparare_patient_company_treatment c 
-            ON s.registro = c.record_id
-            AND s.dthr_prescricao between c.attendance_date 
-            AND c.discharge_date
-            AND c.company_code IS NOT null;
+            null as criterio
+        FROM imparare2_prescricoesantibiotico_prepared s;
     """
-
     df_iterator = dataRequest.get_data(queryText= append_query)
 
     with Pool(4) as pool:
-        for _ in pool.imap_unordered(worker, zip(df_iterator, itertools.repeat(index_name))):
+        for _ in pool.imap_unordered(worker, df_iterator):
             pass
 
 if __name__ == "__main__":
