@@ -4,9 +4,7 @@ import unicodedata as ud
 import pandas as pd
 import threading
 
-def main(args: tuple[pd.DataFrame, str]):
-
-    c, index_name = args
+def main(c: pd.DataFrame):
     
     def process(row):
         resultado = row['resultado'].lower()
@@ -79,7 +77,7 @@ def main(args: tuple[pd.DataFrame, str]):
     novosNomes = {"paciente_id":"patient_id"}
     c = maestro.rename_columns(df= c, DictColumns= novosNomes)
 
-    def elk_upload(c: pd.DataFrame, index_name: str):
+    def elk_upload(c: pd.DataFrame):
         client = dataRequest.ELASTICSEARCH_CONNECTION
         c["paciente_id"] = c["patient_id"]
         c = maestro.keep_columns(df= c, arrayColumns= [
@@ -93,15 +91,14 @@ def main(args: tuple[pd.DataFrame, str]):
             "ordem",
             "criterio",
             "gmr",
-            "paciente_id"
+            "paciente_id",
+            "id_enterprise"
         ])
-        actions = maestro.generate_actions(c, index_name)
+        actions = maestro.generate_actions(c, "exames")
         maestro.bulk_upload_with_retry(client, actions, context="exame", thread_count=1)
 
-    table = "isa_exame"
-    
-    job = threading.Thread(target= elk_upload, args=(c.copy(), index_name))
-    job_3 = threading.Thread(target=dataRequest.set_data_on_sql, args=(c, table), kwargs={"if_exists": "append", "isLocal": True})
+    job = threading.Thread(target= elk_upload, args=(c.copy(), ))
+    job_3 = threading.Thread(target=dataRequest.set_data_on_sql, args=(c, "isa_exame"), kwargs={"if_exists": "append", "isLocal": True})
     
     jobs = [
         job, 
