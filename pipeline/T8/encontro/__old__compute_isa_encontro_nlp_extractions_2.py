@@ -87,9 +87,7 @@ def search_criterias(row):
     row[json_column_name] = json.dumps(json_column_dict)
     return row
 
-def worker(args: tuple[pd.DataFrame, str]):
-    c, index_name = args
-
+def worker(c: pd.DataFrame):
     c['termos_texto'] = c['termos_texto'].astype(str)  # Ensure it's a string type
     c['termos_texto'] = c['termos_texto'].apply(lambda x: x.encode('utf-8').decode('ascii', 'ignore') if isinstance(x, str) else '')
     c = json_criteria_init(c)
@@ -100,15 +98,17 @@ def worker(args: tuple[pd.DataFrame, str]):
     # adiciona a coluna de critérios no dataset com arrays vazios (ex: df['peep']=[], df['fio2']=[], df['spo2']=[], etc.)
     c = c.apply(search_criterias, axis = 1)
     c['prontuario'] = c['prontuario'].astype(int)
+    c['id_enterprise'] = pd.to_numeric(c['id_enterprise'], errors='coerce').astype('Int64')
+    c['id_hospital'] = pd.to_numeric(c['id_hospital'], errors='coerce').astype('Int64')
     
     c = maestro.remove_columns(df= c, arrayColumns= ["col_aux"])
 
-    def elk_upload(c: pd.DataFrame, index_name: str):
+    def elk_upload(c: pd.DataFrame):
         client = dataRequest.ELASTICSEARCH_CONNECTION
         c["paciente_id"] = c["prontuario"]
-        c = maestro.keep_columns(df= c, arrayColumns= ["id", "prontuario", "paciente_id", "dt_encontro", "local_encontro", "termos_texto", "termos_achados", "criterios_extraidos", "texto_evolucao_agg", "company_id"])
+        c = maestro.keep_columns(df= c, arrayColumns= ["id", "prontuario", "id_enterprise", "id_hospital", "paciente_id", "dt_encontro", "local_encontro", "termos_texto", "termos_achados", "criterios_extraidos", "texto_evolucao_agg"])
             
-        actions = maestro.generate_actions(c, index_name)
+        actions = maestro.generate_actions(c, "encontros")
         for success, info in parallel_bulk(
             client,
             actions,
@@ -118,10 +118,8 @@ def worker(args: tuple[pd.DataFrame, str]):
             if not success:
                 print(f'🔴🔴🔴 Documento falhou em sinais vitais:{info} 🔴🔴🔴')
 
-    table = "isa_encontro"
-    
-    job = threading.Thread(target= elk_upload, args=(c.copy(), index_name))
-    job_3 = threading.Thread(target=dataRequest.set_data_on_sql, args=(c, table), kwargs={"if_exists": "append", "isLocal": True})
+    job = threading.Thread(target= elk_upload, args=(c.copy(), ))
+    job_3 = threading.Thread(target=dataRequest.set_data_on_sql, args=(c, "isa_encontro"), kwargs={"if_exists": "append", "isLocal": True})
     
     jobs = [
         job,
@@ -151,12 +149,11 @@ def main():
                 termos_texto TEXT,
                 texto_evolucao_agg TEXT,
                 termos_achados TEXT,
-                company_code TEXT,
-                company_id TEXT,
+                id_hospital SMALLINT,
                 criterios_extraidos TEXT
             );
         """
-        dataRequest.execute(create_query, isLocal= False)
+        # dataRequest.execute(create_query, isLocal= False)
         dataRequest.execute(create_query, isLocal= True)
 
         client.options(ignore_status=[400, 404]).indices.delete(index=index_name)
@@ -193,6 +190,11 @@ def main():
                         "id_enterprise": {
                             "type": "integer"
                         },
+                        "id_hospital": {
+                            "type": "integer",
+                            "index": False,
+                            "doc_values": False
+                        },
                         "paciente_id": {
                             "type": "integer",
                             "index": False,
@@ -206,11 +208,11 @@ def main():
                             "index": False, 
                             "doc_values": False
                         },
-                        "company_id": {
-                            "type": "keyword", 
-                            "index": False, 
-                            "doc_values": False
-                        },
+                        # "company_id": {
+                        #     "type": "keyword", 
+                        #     "index": False, 
+                        #     "doc_values": False
+                        # },
                         "termos_texto": {
                             "type": "text", 
                             "index": False
@@ -233,43 +235,52 @@ def main():
             )
     else: # Vamos deletar somente os dados dos pacientes que serão adicionados
         # Drop local table
-        # TODO: Arrumar pois agora é chave composta id_paciente + id_enterprise
-        dataRequest.execute("DELETE FROM isa_encontro WHERE prontuario in (select distinct record_id from patients_to_update)", isLocal= True)
+        dataRequest.execute("DELETE FROM isa_encontro WHERE (prontuario, id_enterprise) in (select distinct record_id, id_enterprise from patients_to_update)", isLocal= True)
 
         # Drop ELK index
         df = dataRequest.get_data(queryText= f"SELECT distinct record_id, id_enterprise FROM patients_to_update", chunck= None)
-        pcts_ids = df['record_id'].tolist()
-
+        
         def chunks(seq, n):
             """Yield successive n-sized chunks from seq."""
             for i in range(0, len(seq), n):
                 yield seq[i:i + n]
 
         total= 0
-        for lote in chunks(pcts_ids, 1000):
+        for lote in chunks(df, 1000):
             resp = client.delete_by_query(
                 index= index_name,
                 query= {
-                    "terms": {
-                        "prontuario": lote,
-                        "id_enterprise": df[df['record_id'].isin(lote)]['id_enterprise'].tolist()
-                    }
+                    "bool": {
+                        "should": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {"term": {"id_enterprise": ent}},
+                                        {"terms": {"prontuario": grupo["record_id"].tolist()}},
+                                    ]
+                                }
+                            }
+                            for ent, grupo in lote.groupby("id_enterprise")
+                        ], 
+                        "minimum_should_match": 1
+                        }
                 },
                 conflicts= "proceed",
-                refresh= True,
+                refresh= False,
                 slices= "auto"
             )
             total += resp['deleted']
             print(f"Deletados {resp['deleted']} encontros do lote de {len(lote)} pacientes. Total deletados até agora: {total}")
         
-        print(f"Deletados {total} encontros no total para {len(pcts_ids)} pacientes.")
+        client.indices.refresh(index=index_name)
+        print(f"Deletados {total} encontros no total para {len(df)} pacientes.")
     
     append_query = """
         SELECT distinct 
             md5(isa_encontro.registro::varchar || isa_encontro.id_enterprise::varchar || isa_encontro.data_dia::varchar || isa_encontro.unidade_fst::varchar || isa_encontro.unidade_lst::varchar) as id,
             isa_encontro.registro AS prontuario,
-            c.id_hospital as id_hospital,
-            isa_encontro.id_enterprise AS id_enterprise,
+            c.id_hospital::SMALLINT as id_hospital,
+            isa_encontro.id_enterprise::SMALLINT AS id_enterprise,
             isa_encontro.data_dia AS dt_encontro,
             isa_encontro.unidade_fst AS local_encontro,
             evolucao.termos_texto AS termos_texto,
@@ -288,7 +299,7 @@ def main():
     df_iterator = dataRequest.get_data(queryText= append_query)
 
     with Pool(4) as pool:
-        for _ in pool.imap_unordered(worker, zip(df_iterator, itertools.repeat(index_name))):
+        for _ in pool.imap_unordered(worker, df_iterator):
             pass
 
 
