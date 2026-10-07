@@ -7,8 +7,7 @@ import threading
 import itertools
 
 # Esta função recebe uma STRING e retorna uma STRING sem acentos
-def worker (args: tuple[pd.DataFrame, str]):
-    c, index_name = args
+def worker (c: pd.DataFrame):
     def remove_accents(input_str):
         if not isinstance(input_str, str):
             return input_str  # Or you can choose to return an empty string or handle differently
@@ -22,7 +21,7 @@ def worker (args: tuple[pd.DataFrame, str]):
         
     c['laudo_texto'] = c['laudo_texto'].apply(remove_accents)
 
-    def elk_upload(c: pd.DataFrame, index_name: str):
+    def elk_upload(c: pd.DataFrame):
         client = dataRequest.ELASTICSEARCH_CONNECTION
         c["paciente_id"] = c["patient_id"]
         c = maestro.keep_columns(df= c, arrayColumns= [
@@ -35,12 +34,13 @@ def worker (args: tuple[pd.DataFrame, str]):
             "ordem",
             "criterio",
             "paciente_id",
+            "id_enterprise",
         ])
-        actions = maestro.generate_actions(c, index_name)
+        actions = maestro.generate_actions(c, "laudos")
         maestro.bulk_upload_with_retry(client, actions, context="laudo", thread_count=1)
 
     table = "isa_laudo"
-    job = threading.Thread(target= elk_upload, args=(c.copy(), index_name))
+    job = threading.Thread(target= elk_upload, args=(c.copy(), ))
     job_3 = threading.Thread(target=dataRequest.set_data_on_sql, args=(c, table), kwargs={"if_exists": "append", "isLocal": True})
     
     jobs = [
@@ -58,13 +58,14 @@ def main():
     print(client.cluster.health())
     print(client.ping())
 
-    index_name = maestro.getELKIndexValue("laudos")
+    index_name = "laudos"
     if maestro.get_must_update_all_patients() == '1':
         create_query = """
             DROP TABLE IF EXISTS isa_laudo;
             CREATE UNLOGGED TABLE isa_laudo (
                 id TEXT,
                 patient_id INTEGER,
+                id_enterprise SMALLINT,
                 codigo_laudo INTEGER,
                 descricao_laudo TEXT,
                 dthr_pedido TIMESTAMP,
@@ -72,12 +73,10 @@ def main():
                 laudo_texto TEXT,
                 tipo_atendimento TEXT,
                 ordem TEXT,
-                criterio TEXT,
-                company_code TEXT,
-                company_id TEXT
+                criterio TEXT
             );
         """
-        dataRequest.execute(create_query, isLocal= False)
+        # dataRequest.execute(create_query, isLocal= False)
         dataRequest.execute(create_query, isLocal= True)
 
         client.options(ignore_status=[400, 404]).indices.delete(index=index_name)
@@ -111,6 +110,7 @@ def main():
                         "ordem": {"type": "keyword", "index": False, "doc_values": False},
                         "criterio": {"type": "keyword", "index": False, "doc_values": False},
                         "paciente_id": {"type": "integer"},
+                        "id_enterprise": {"type": "short"}
                     }
                 }
             )
@@ -118,12 +118,11 @@ def main():
 
     else:
         # Drop local table
-        dataRequest.execute("DELETE FROM isa_laudo WHERE patient_id in (select distinct record_id from patients_to_update)", isLocal= True)
+        dataRequest.execute("DELETE FROM isa_laudo WHERE (patient_id, id_enterprise) in (select distinct record_id, id_enterprise from patients_to_update)", isLocal= True)
         
         #Busca IDS para deleção
-        df = dataRequest.get_data(queryText= f"SELECT distinct record_id FROM patients_to_update", chunck= None)
-        pcts_ids = df['record_id'].tolist()
-
+        df = dataRequest.get_data(queryText= f"SELECT distinct record_id, id_enterprise FROM patients_to_update", chunck= None)
+        
         # Drop ELK index
         def chunks(seq, n):
             """Yield successive n-sized chunks from seq."""
@@ -131,26 +130,40 @@ def main():
                 yield seq[i:i + n]
 
         total= 0
-        for lote in chunks(pcts_ids, 1000):
+        for lote in chunks(df, 1000):
             resp = client.delete_by_query(
                 index= index_name,
                 query= {
-                    "terms": {
-                        "paciente_id": lote
+                    "bool": {
+                        "should": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {"term": {"id_enterprise": ent}},
+                                        {"terms": {"prontuario": grupo["record_id"].tolist()}},
+                                    ]
+                                }
+                            }
+                            for ent, grupo in lote.groupby("id_enterprise")
+                        ], 
+                        "minimum_should_match": 1
                     }
                 },
                 conflicts= "proceed",
-                refresh= True,
+                refresh= False,
                 slices= "auto"
             )
             total += resp['deleted']
             print(f"Deletados {resp['deleted']} laudos do lote de {len(lote)} pacientes. Total deletados até agora: {total}")
-        print(f"Deletados {total} laudos no total para {len(pcts_ids)} pacientes.")
+
+        client.indices.refresh(index=index_name)
+        print(f"Deletados {total} laudos no total para {len(df)} pacientes.")
 
     append_query = """
         SELECT 
-            (xr.xray_request_date::varchar||xr.xray_delivery_date::varchar||xr.record_id::varchar||xr.xray_exam_description::varchar||xr.attendance_type::varchar) as id, 
+            (xr.xray_request_date::varchar || h.id_enterprise::varchar ||xr.xray_delivery_date::varchar||xr.record_id::varchar||xr.xray_exam_description::varchar||xr.attendance_type::varchar) as id, 
             xr.record_id as patient_id,
+            h.id_enterprise,
             null as codigo_laudo, 
             xr.xray_exam_description as descricao_laudo, 
             xr.xray_request_date as dthr_pedido, 
@@ -158,20 +171,16 @@ def main():
             LOWER(xr.xray_content::text) as laudo_texto, 
             xr.attendance_type as tipo_atendimento, 
             null as ordem, 
-            null as criterio, 
-            c.company_code, 
-            c.hospital_id as company_id
+            null as criterio
         FROM xrays_reports xr
-        LEFT JOIN imparare_patient_company_treatment c 
-            ON xr.record_id = c.record_id
-            AND xr.xray_request_date between c.attendance_date AND c.discharge_date
-            AND c.company_code IS NOT null;
+		inner join hospitals h
+		on h.id_hospital = xr.id_hospital;
     """
     
     df_iterator = dataRequest.get_data(queryText= append_query)
 
     with Pool(processes= 4) as pool:
-        for _ in pool.imap_unordered(worker, zip(df_iterator, itertools.repeat(index_name))):
+        for _ in pool.imap_unordered(worker, df_iterator):
             pass
 
 if __name__ == "__main__":

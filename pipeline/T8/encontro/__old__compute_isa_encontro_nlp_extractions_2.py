@@ -263,7 +263,7 @@ def main():
                             for ent, grupo in lote.groupby("id_enterprise")
                         ], 
                         "minimum_should_match": 1
-                        }
+                    }
                 },
                 conflicts= "proceed",
                 refresh= False,
