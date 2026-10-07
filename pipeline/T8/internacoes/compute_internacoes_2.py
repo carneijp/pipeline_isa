@@ -21,7 +21,7 @@ def worker(c = pd.DataFrame):
     c = maestro.rename_columns(df= c, DictColumns= novosNomes)
 
     # Salvando no remoto
-    dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "isa_internacoes", isLocal=  False, if_exists= "append")
+    # dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "isa_internacoes", isLocal=  False, if_exists= "append")
     # Salvando no local
     dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "isa_internacoes", isLocal=  True, if_exists= "append")
 
@@ -33,46 +33,35 @@ def main():
             CREATE UNLOGGED TABLE isa_internacoes (
                 id TEXT,
                 paciente_id INTEGER,
+                id_enterprise SMALLINT,
                 cd_atendimento INTEGER,
                 dthr_atendimento TIMESTAMP,
                 dthr_alta TIMESTAMP,
                 tipo_alta TEXT,
-                tempo_estadia INTEGER,
-                company_code TEXT,
-                company_id TEXT
+                tempo_estadia INTEGER
             );
         """
         dataRequest.execute(create_query, isLocal= True)
-        dataRequest.execute(create_query, isLocal= False)
+        # dataRequest.execute(create_query, isLocal= False)
     else:
         # Drop local table
-        dataRequest.execute("DELETE FROM isa_internacoes WHERE paciente_id in (select distinct record_id from patients_to_update)", isLocal= True)
+        dataRequest.execute("DELETE FROM isa_internacoes WHERE (paciente_id, id_enterprise) in (select distinct record_id, id_enterprise from patients_to_update)", isLocal= True)
         
         #Busca IDS para deleção
-        df = dataRequest.get_data(queryText= f"SELECT distinct record_id::text FROM patients_to_update", chunck= None)
-        pcts_ids = df['record_id'].tolist()
+        df = dataRequest.get_data(queryText= f"SELECT distinct record_id::text, id_enterprise FROM patients_to_update", chunck= None)
 
         # Drop Banco aws
-        ids = "(" + ",".join(pcts_ids) + ")"
-        dataRequest.execute(f"DELETE FROM isa_internacoes WHERE paciente_id in {ids}", isLocal= False)
+        ids = ""
+        for i in range(len(df)):
+            ids += f"({df.iloc[i]['record_id']}, {df.iloc[i]['id_enterprise']}),"
+        ids = ids.strip(",")
+        dataRequest.execute(f"DELETE FROM isa_internacoes WHERE (paciente_id, id_enterprise) in ({ids})", isLocal= False)
 
     append_query = """
-        SELECT 
-            md5(s.registro::text || (s.cd_atendimento)::text) as id,
-            s.*, 
-            c.company_code, 
-            c.hospital_id as company_id  
-        FROM "imparare2_internacoes_prepared" s
-        LEFT JOIN imparare2_company_code c 
-            ON s.registro = c.record_id
-            AND s.dthr_atendimento between c.attendance_date 
-            AND coalesce(c.hospital_discharge_date, (
-                SELECT min(c2.attendance_date)
-                FROM imparare2_company_code c2
-                WHERE c2.record_id = c.record_id AND c2.attendance_id > c.attendance_id
-                GROUP BY c2.record_id 
-                ), now())
-            AND c.company_code IS NOT null
+        SELECT DISTINCT
+            md5(s.registro::text || s.id_enterprise::text || (s.cd_atendimento)::text) as id,
+            s.*
+        FROM imparare2_internacoes_v2_stacked_by_cd_atendimento s
     """
     df_iterator = dataRequest.get_data(queryText= append_query, chunck= 2000)
 
