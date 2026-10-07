@@ -188,10 +188,10 @@ def main():
                             "type": "integer"
                         },
                         "id_enterprise": {
-                            "type": "integer"
+                            "type": "short"
                         },
                         "id_hospital": {
-                            "type": "integer",
+                            "type": "short",
                             "index": False,
                             "doc_values": False
                         },

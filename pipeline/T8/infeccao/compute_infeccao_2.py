@@ -5,14 +5,14 @@ import threading
 from multiprocessing import Pool, cpu_count
 import itertools
 
-def worker(args: tuple[pd.DataFrame, str]):
-    c, index_name = args
-
-    def elk_upload(c: pd.DataFrame, index_name: str):
+def worker(c: pd.DataFrame):
+    def elk_upload(c: pd.DataFrame):
         client = dataRequest.ELASTICSEARCH_CONNECTION
         c = maestro.keep_columns(df= c, arrayColumns= [
             "id",
             "paciente_id",
+            "id_enterprise",
+            "id_hospital",
             "dt_infeccao",
             "prob_perc",
             "prob_perc_pnm",
@@ -34,17 +34,17 @@ def worker(args: tuple[pd.DataFrame, str]):
             "dt_inicio",
             "dt_fim"
         ])
-        actions = maestro.generate_actions(c, index_name)
+        actions = maestro.generate_actions(c, "infeccoes")
         maestro.bulk_upload_with_retry(client, actions, context="infeccao", thread_count=1)
 
     table = "isa_infeccao"
-    job = threading.Thread(target= elk_upload, args=(c.copy(), index_name))
-    job_2 = threading.Thread(target=dataRequest.set_data_on_sql, args=(c, table), kwargs={"if_exists": "append", "isLocal": False})
+    job = threading.Thread(target= elk_upload, args=(c.copy(), ))
+    # job_2 = threading.Thread(target=dataRequest.set_data_on_sql, args=(c, table), kwargs={"if_exists": "append", "isLocal": False})
     job_3 = threading.Thread(target=dataRequest.set_data_on_sql, args=(c, table), kwargs={"if_exists": "append", "isLocal": True})
     
     jobs = [
         job, 
-        job_2, 
+        # job_2, 
         job_3
     ]
     for j in jobs:
@@ -58,7 +58,7 @@ def main():
     print(client.cluster.health())
     print(client.ping())
 
-    index_name = maestro.getELKIndexValue("infeccoes")
+    index_name = "infeccoes"
 
     if maestro.get_must_update_all_patients() == '1':
         create_query = """
@@ -66,6 +66,8 @@ def main():
             CREATE UNLOGGED TABLE isa_infeccao (
                 id TEXT,
                 paciente_id INTEGER,
+                id_enterprise SMALLINT,
+                id_hospital SMALLINT,
                 dt_infeccao TIMESTAMP,
                 prob_perc FLOAT4,
                 prob_perc_pnm FLOAT4,
@@ -91,7 +93,7 @@ def main():
             );
         """
         dataRequest.execute(create_query, isLocal= True)
-        dataRequest.execute(create_query, isLocal= False)
+        # dataRequest.execute(create_query, isLocal= False)
         client.options(ignore_status=[400, 404]).indices.delete(index=index_name)
         
         if not client.indices.exists(index=index_name):
@@ -116,6 +118,8 @@ def main():
                     "properties": {
                         "id": {"type": "keyword", "index": False, "doc_values": False},
                         "paciente_id": {"type": "integer"},
+                        "id_enterprise": {"type": "short"},
+                        "id_hospital": {"type": "short", "index": False, "doc_values": False},
                         "dt_infeccao": {"type": "date", "index": False, "doc_values": False},
                         "prob_perc": {"type": "float", "index": False, "doc_values": False},
                         "prob_perc_pnm": {"type": "float", "index": False, "doc_values": False},
@@ -142,15 +146,17 @@ def main():
             maestro.wait_for_index_health(client, index_name)
     else:
         # Drop local table
-        dataRequest.execute("DELETE FROM isa_infeccao WHERE paciente_id in (select distinct record_id from patients_to_update)", isLocal= True)
+        dataRequest.execute("DELETE FROM isa_infeccao WHERE (paciente_id, id_enterprise) in (select distinct record_id, id_enterprise from patients_to_update)", isLocal= True)
         
         #Busca IDS para deleção
         df = dataRequest.get_data(queryText= f"SELECT distinct record_id::text FROM patients_to_update", chunck= None)
-        pcts_ids = df['record_id'].tolist()
 
+        ids = ""
+        for i in range(len(df)):
+            ids += f"({df.iloc[i]['record_id']}, {df.iloc[i]['id_enterprise']}),"
+        ids = ids.strip(",")
         # Drop Banco aws
-        ids = "(" + ",".join(pcts_ids) + ")"
-        dataRequest.execute(f"DELETE FROM isa_infeccao WHERE paciente_id in {ids}", isLocal= False)
+        dataRequest.execute(f"DELETE FROM isa_infeccao WHERE (paciente_id, id_enterprise) in ({ids})", isLocal= False)
 
         # Drop ELK index
         def chunks(seq, n):
@@ -159,27 +165,41 @@ def main():
                 yield seq[i:i + n]
 
         total= 0
-        for lote in chunks(pcts_ids, 1000):
+        for lote in chunks(df, 1000):
             resp = client.delete_by_query(
                 index= index_name,
                 query= {
-                    "terms": {
-                        "paciente_id": lote
-                    }
+                    "bool": {
+                        "should": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {"term": {"id_enterprise": ent}},
+                                        {"terms": {"prontuario": grupo["record_id"].tolist()}},
+                                    ]
+                                }
+                            }
+                            for ent, grupo in lote.groupby("id_enterprise")
+                        ], 
+                        "minimum_should_match": 1
+                        }
                 },
                 conflicts= "proceed",
-                refresh= True,
+                refresh= False,
                 slices= "auto"
             )
             total += resp['deleted']
             print(f"Deletados {resp['deleted']} infeccao do lote de {len(lote)} pacientes. Total deletados até agora: {total}")
-        print(f"Deletados {total} infeccao no total para {len(pcts_ids)} pacientes.")
+        
+        client.indices.refresh(index=index_name)
+        print(f"Deletados {total} infeccao no total para {len(df)} pacientes.")
 
 
     append_query = """
-            SELECT 
+        SELECT 
             id, 
             paciente_id, 
+            s.id_enterprise,
             to_timestamp(dt_infeccao::text || ' 00:00:00', 'YYYY-MM-DD hh24:mi:ss')::timestamp as dt_infeccao, 
             prob_perc, 
             prob_perc_pnm, 
@@ -200,19 +220,18 @@ def main():
             pred_iras,
             to_timestamp(dt_inicio::text || ' 00:00:00', 'YYYY-MM-DD hh24:mi:ss')::timestamp as dt_inicio, 
             to_timestamp(dt_fim::text || ' 00:00:00', 'YYYY-MM-DD hh24:mi:ss')::timestamp as dt_fim,
-            c.company_code,
-            c.hospital_id as company_id
+            c.id_hospital
         FROM "imparare2_isa_infeccao_v2" s
-        LEFT JOIN imparare_patient_company_treatment c 
+        INNER JOIN imparare_patient_company_treatment c 
             ON s.paciente_id = c.record_id
-            AND s.dt_infeccao BETWEEN c.attendance_date AND c.discharge_date 
-            AND c.company_code IS NOT NULL;
+	            AND s.id_enterprise = c.id_enterprise 
+	            AND s.dt_infeccao BETWEEN c.attendance_date AND c.discharge_date + INTERVAL '1 DAY';
     """
     
     df_iterator = dataRequest.get_data(queryText= append_query)
 
     with Pool(4) as pool:
-        for _ in pool.imap_unordered(worker, zip(df_iterator, itertools.repeat(index_name))):
+        for _ in pool.imap_unordered(worker, df_iterator):
             pass
 
 
