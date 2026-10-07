@@ -3,7 +3,7 @@ import pandas as pd
 from multiprocessing import Pool
 
 def worker(c: pd.DataFrame):
-    dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "isa_pacientes_companies", if_exists= "append", isLocal= False)
+    # dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "isa_pacientes_companies", if_exists= "append", isLocal= False)
     dataRequest.set_data_on_sql(df= c, nomeTabelaDestino= "isa_pacientes_companies", if_exists= "append", isLocal= True)
 
 def main():
@@ -12,26 +12,30 @@ def main():
             DROP TABLE IF EXISTS isa_pacientes_companies;
             CREATE UNLOGGED TABLE isa_pacientes_companies (
                 paciente_id int4,
-                company_id uuid
+                id_hospital smallint,
+                id_enterprise smallint
             );
         """
-        dataRequest.execute(create_query, isLocal= False)
+        # dataRequest.execute(create_query, isLocal= False)
         dataRequest.execute(create_query, isLocal= True)
     else:
         # Drop local table
-        dataRequest.execute("DELETE FROM isa_pacientes_companies WHERE paciente_id in (select distinct record_id from patients_to_update)", isLocal= True)
+        dataRequest.execute("DELETE FROM isa_pacientes_companies WHERE (paciente_id, id_enterprise) in (select distinct record_id, id_enterprise from patients_to_update)", isLocal= True)
         
         #Busca IDS para deleção
-        df = dataRequest.get_data(queryText= f"SELECT distinct record_id::text FROM patients_to_update", chunck= None)
-        pcts_ids = df['record_id'].tolist()
+        df = dataRequest.get_data(queryText= f"SELECT distinct record_id::text, id_enterprise FROM patients_to_update", chunck= None)
 
-        ids = "(" + ",".join(pcts_ids) + ")"
-        dataRequest.execute(f"DELETE FROM isa_pacientes_companies WHERE paciente_id in {ids}", isLocal= False)
+        ids = ""
+        for i in range(len(df)):
+            ids += f"({df.iloc[i]['record_id']}, {df.iloc[i]['id_enterprise']}),"
+        ids = ids.strip(",")
+        dataRequest.execute(f"DELETE FROM isa_pacientes_companies WHERE (paciente_id, id_enterprise) in ({ids})", isLocal= False)
 
     append_query = """ 
         SELECT DISTINCT
             record_id as paciente_id,
-            hospital_id as company_id
+            id_hospital,
+            id_enterprise
         FROM imparare_patient_company_treatment;
     """
 
